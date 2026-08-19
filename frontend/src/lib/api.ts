@@ -7,8 +7,9 @@
 const BASE: string = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/+$/, "") ?? "";
 
 async function req<T>(path: string, options?: RequestInit): Promise<T> {
+  const isForm = options?.body instanceof FormData;
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: isForm ? undefined : { "Content-Type": "application/json" },
     ...options,
   });
   if (!res.ok) {
@@ -25,6 +26,11 @@ export const api = {
   put: <T>(path: string, body?: unknown) =>
     req<T>(path, { method: "PUT", body: JSON.stringify(body ?? {}) }),
   del: <T>(path: string) => req<T>(path, { method: "DELETE" }),
+  upload: <T>(path: string, file: Blob, filename: string) => {
+    const fd = new FormData();
+    fd.append("file", file, filename);
+    return req<T>(path, { method: "POST", body: fd });
+  },
 };
 
 export function wsUrl(path: string): string {

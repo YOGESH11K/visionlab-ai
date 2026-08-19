@@ -58,14 +58,23 @@ def detect_led(frame: np.ndarray) -> List[Cand]:
             if area < 30 or area > frame_area * 0.005:
                 continue
             x, y, w, h = cv2.boundingRect(c)
-            circular = 4.0 * np.pi * area / max((cv2.arcLength(c, True) ** 2), 1e-6)
-            if circular < 0.82:
+            if w < 3 or h < 3:
+                continue
+            # round die: fill ratio vs minimum enclosing circle (robust to JPEG noise)
+            (cx, cy), r = cv2.minEnclosingCircle(c)
+            if r < 3:
+                continue
+            enclosing = np.pi * r * r
+            fill = area / max(enclosing, 1e-6)
+            if fill < 0.55 or fill > 1.05:
+                continue
+            if w > 2 * r + 4 or h > 2 * r + 4:
                 continue
             found.append(
                 {
                     "id": "led",
                     "name": label,
-                    "confidence": _conf(min(0.5 + circular * 0.2, 0.7)),
+                    "confidence": _conf(min(0.5 + fill * 0.2, 0.7)),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": f"small bright round {name} die",

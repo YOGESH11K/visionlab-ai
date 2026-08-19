@@ -1,5 +1,5 @@
 """Component database + scanner endpoints."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile
 
 from ..services.component_db import get_db
 from ..services.scanner_service import recognize_frame, scan_frame
@@ -66,4 +66,20 @@ def recognize():
 
     arr = np.frombuffer(frame, np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    return recognize_frame(img)
+
+
+@router.post("/recognize/upload")
+def recognize_upload(file: UploadFile):
+    """Recognize a component in a browser-captured image (JPEG/PNG upload)."""
+    data = file.file.read()
+    if not data:
+        raise HTTPException(400, "empty upload")
+    import cv2
+    import numpy as np
+
+    arr = np.frombuffer(data, np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise HTTPException(400, "could not decode image - upload a JPEG/PNG photo")
     return recognize_frame(img)

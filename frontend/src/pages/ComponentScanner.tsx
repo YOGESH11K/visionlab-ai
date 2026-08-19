@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, ComponentInfo } from "../lib/api";
 import { Panel, Tag } from "../components/ui";
 import { useStore } from "../lib/store";
-import { useVideoFeed } from "../lib/useVideo";
 import { IconAlert, IconCamera, IconRefresh, IconScan } from "../components/icons";
 
 interface Candidate {
@@ -25,7 +24,6 @@ interface RecognizeResult {
 
 export function ComponentScanner() {
   const { notify } = useStore();
-  const { connected, frame } = useVideoFeed(true);
   const [components, setComponents] = useState<ComponentInfo[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [guidance, setGuidance] = useState<string[]>([]);
@@ -34,7 +32,11 @@ export function ComponentScanner() {
   const [selected, setSelected] = useState<ComponentInfo | null>(null);
   const [identifyName, setIdentifyName] = useState("");
   const [lastScan, setLastScan] = useState<string>("");
+  const [camError, setCamError] = useState<string>("");
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const autoRef = useRef<number | null>(null);
+  const scanLock = useRef(false);
 
   useEffect(() => {
     api.get<{ components: ComponentInfo[] }>("/api/components").then((r) => {
@@ -42,11 +44,56 @@ export function ComponentScanner() {
     }).catch(() => {});
   }, []);
 
+  const startCamera = useCallback(async () => {
+    if (streamRef.current) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      setCamError("");
+    } catch (e) {
+      setCamError(`Camera unavailable: ${(e as Error).message}. You can still scan using manual identification.`);
+    }
+  }, []);
+
+  useEffect(() => {
+    startCamera();
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, [startCamera]);
+
+  const capture = useCallback(async (): Promise<Blob | null> => {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")!.drawImage(video, 0, 0);
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85));
+  }, []);
+
   const scan = useCallback(async () => {
-    if (scanning) return;
+    if (scanning || scanLock.current) return;
+    scanLock.current = true;
     setScanning(true);
     try {
-      const r = await api.post<RecognizeResult>("/api/components/recognize");
+      const blob = await capture();
+      if (!blob) {
+        setCandidates([]);
+        setGuidance(["Camera not ready yet. Make sure this tab is not blocked from accessing the camera."]);
+        return;
+      }
+      const r = await api.upload<RecognizeResult>("/api/components/recognize/upload", blob, "frame.jpg");
       setCandidates(r.candidates ?? []);
       setGuidance(r.guidance ?? []);
       setLastScan(new Date().toLocaleTimeString());
@@ -57,15 +104,16 @@ export function ComponentScanner() {
       notify("error", `Scan failed: ${e}`);
     } finally {
       setScanning(false);
+      scanLock.current = false;
     }
-  }, [scanning, selected, notify]);
+  }, [scanning, selected, capture, notify]);
 
-  // Auto-scan the live frame
+  // Auto-scan every 2.5s while camera is live
   useEffect(() => {
     if (!autoScan) return;
     autoRef.current = window.setInterval(() => {
       scan();
-    }, 3000);
+    }, 2500);
     return () => {
       if (autoRef.current) window.clearInterval(autoRef.current);
     };
@@ -92,33 +140,21 @@ export function ComponentScanner() {
   return (
     <div className="grid h-full gap-3 lg:grid-cols-2">
       <div className="flex min-h-0 flex-col gap-3">
-        <Panel
-          title="Camera Component Recognition"
-          right={
-            <span className={`mono text-[10px] ${connected ? "text-[var(--color-good)]" : "text-[var(--color-bad)]"}`}>
-              {connected ? "CAMERA LIVE" : "OFFLINE"}
-            </span>
-          }
-          bodyClassName="overflow-y-auto"
-        >
+        <Panel title="Camera Component Recognition" bodyClassName="overflow-y-auto">
           <div className="flex flex-col gap-3 p-3">
             <div className="flex items-start gap-2 rounded-md border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-2.5">
               <IconAlert size={14} className="mt-0.5 shrink-0 text-[var(--color-warn)]" />
               <p className="text-[11.5px] leading-snug text-[var(--color-ink-dim)]">
-                Point your camera at any electronic or robotics component. VisionLab identifies it
+                Point your device camera at any electronic or robotics component. VisionLab identifies it
                 and opens its complete knowledge panel — <span className="mono text-[var(--color-ink)]">use, pins, voltage,
                 Arduino wiring, ESP32 notes</span> and safety. Results are honest <span className="mono text-[var(--color-warn)]">possible matches</span>,
                 never false certainties.
               </p>
             </div>
 
-            {/* live feed + detection overlay */}
-            <div className="relative overflow-hidden rounded-md border border-[var(--color-line)] bg-black grid-bg">
-              <img
-                src={frame?.jpeg ? `data:image/jpeg;base64,${frame.jpeg}` : undefined}
-                alt="recognition feed"
-                className="h-full w-full object-contain"
-              />
+            {/* local browser camera feed */}
+            <div className="relative overflow-hidden rounded-md border border-[var(--color-line)] bg-black">
+              <video ref={videoRef} className="h-full w-full object-contain" muted playsInline />
               {candidates.length > 0 && (
                 <svg className="absolute inset-0 h-full w-full" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet">
                   {candidates.map((c, i) => {
@@ -144,10 +180,17 @@ export function ComponentScanner() {
                   })}
                 </svg>
               )}
-              {!connected && (
+              {camError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70 p-4">
+                  <p className="mono max-w-md text-center text-[11.5px] leading-snug text-[var(--color-warn)]">
+                    {camError}
+                  </p>
+                </div>
+              )}
+              {!camError && !streamRef.current && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60">
                   <span className="mono text-[12px] uppercase tracking-widest text-[var(--color-warn)]">
-                    Connecting to vision service…
+                    Starting camera…
                   </span>
                 </div>
               )}
@@ -158,11 +201,14 @@ export function ComponentScanner() {
                 <IconScan size={14} /> {scanning ? "Scanning…" : "Scan now"}
               </button>
               <button
-                className={`btn ${autoScan ? "" : ""}`}
+                className="btn"
                 style={{ borderColor: autoScan ? "var(--color-good)" : undefined }}
                 onClick={() => setAutoScan((a) => !a)}
               >
                 <IconCamera size={14} /> Auto {autoScan ? "ON" : "OFF"}
+              </button>
+              <button className="btn" onClick={startCamera} title="Re-open camera">
+                <IconRefresh size={14} /> Restart cam
               </button>
               <span className="mono ml-auto text-[10px] text-[var(--color-ink-faint)]">
                 {lastScan ? `last ${lastScan}` : "no scan yet"}
@@ -189,7 +235,7 @@ export function ComponentScanner() {
               </div>
             ) : (
               <p className="text-[12px] text-[var(--color-ink-faint)]">
-                No candidates yet. Point the camera at a component and scan (or enable Auto).
+                No candidates yet. Point the camera at a component and scan (or keep Auto ON).
               </p>
             )}
 
