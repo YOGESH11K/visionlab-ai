@@ -83,6 +83,24 @@ Covered by the 24-phase plan in `handoff.md`; remaining work is polishing and ex
 
 Phase-by-phase details and timestamps are logged in `handoff.md`.
 
+## Production deployment (2026-08-19)
+
+- GitHub: https://github.com/YOGESH11K/visionlab-ai (public)
+- Frontend (Vercel): https://visionlab-ai.vercel.app — live, SPA build, WebSocket-capable
+- Backend (Render): https://empire-backend-pjvk.onrender.com — live, health OK
+- Full production smoke test passed: system status, components, gesture mappings,
+  sim gesture, hardware LED command, sensor sample, AI chat, code generate,
+  circuit validate, scanner, projects, learning, diagnostics, CORS preflight,
+  cross-origin WebSocket `/ws/video` frame stream.
+- Deployment details: `docs/DEPLOYMENT.md`
+- Fixes made for production:
+  - `backend/requirements.txt` (pinned runtime deps)
+  - `backend/.python-version` = 3.12 (Render 3.14 lacks pydantic-core wheels)
+  - CORS accepts comma-separated `EMPIRE_CORS_ORIGINS` (pydantic NoDecode)
+  - Frontend `VITE_API_BASE` env support + `wsUrl` uses backend origin in prod
+  - `render.yaml` + `vercel.json` blueprints
+  - `.gitignore` excludes SQLite WAL/SHM files
+
 ---
 
 **Validation status (final checklist):** see the closing section of `handoff.md`.
