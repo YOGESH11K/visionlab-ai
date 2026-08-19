@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, ComponentInfo } from "../lib/api";
 import { Panel, Tag } from "../components/ui";
 import { useStore } from "../lib/store";
-import { IconAlert, IconScan } from "../components/icons";
+import { useVideoFeed } from "../lib/useVideo";
+import { IconAlert, IconCamera, IconRefresh, IconScan } from "../components/icons";
 
 interface Candidate {
   id: string;
@@ -10,17 +11,30 @@ interface Candidate {
   confidence: number;
   bbox?: number[];
   possible: boolean;
+  hint?: string;
+  info?: ComponentInfo | null;
+}
+
+interface RecognizeResult {
+  experimental: boolean;
+  candidates: Candidate[];
+  note?: string;
+  guidance?: string[];
+  top_match?: ComponentInfo | null;
 }
 
 export function ComponentScanner() {
   const { notify } = useStore();
+  const { connected, frame } = useVideoFeed(true);
   const [components, setComponents] = useState<ComponentInfo[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [guidance, setGuidance] = useState<string[]>([]);
   const [scanning, setScanning] = useState(false);
+  const [autoScan, setAutoScan] = useState(true);
   const [selected, setSelected] = useState<ComponentInfo | null>(null);
   const [identifyName, setIdentifyName] = useState("");
-  const [scanNote, setScanNote] = useState("");
+  const [lastScan, setLastScan] = useState<string>("");
+  const autoRef = useRef<number | null>(null);
 
   useEffect(() => {
     api.get<{ components: ComponentInfo[] }>("/api/components").then((r) => {
@@ -28,25 +42,34 @@ export function ComponentScanner() {
     }).catch(() => {});
   }, []);
 
-  const scan = async () => {
+  const scan = useCallback(async () => {
+    if (scanning) return;
     setScanning(true);
-    setCandidates([]);
     try {
-      const r = await api.post<{
-        candidates: Candidate[];
-        guidance: string[];
-        note?: string;
-      }>("/api/components/scan");
+      const r = await api.post<RecognizeResult>("/api/components/recognize");
       setCandidates(r.candidates ?? []);
       setGuidance(r.guidance ?? []);
-      setScanNote(r.note ?? "");
-      notify("info", r.candidates?.length ? "Scan complete — possible matches" : "Scan complete — no candidates");
+      setLastScan(new Date().toLocaleTimeString());
+      if (r.top_match && !selected) {
+        setSelected(r.top_match);
+      }
     } catch (e) {
       notify("error", `Scan failed: ${e}`);
     } finally {
       setScanning(false);
     }
-  };
+  }, [scanning, selected, notify]);
+
+  // Auto-scan the live frame
+  useEffect(() => {
+    if (!autoScan) return;
+    autoRef.current = window.setInterval(() => {
+      scan();
+    }, 3000);
+    return () => {
+      if (autoRef.current) window.clearInterval(autoRef.current);
+    };
+  }, [autoScan, scan]);
 
   const identify = async () => {
     if (!identifyName) return;
@@ -58,44 +81,115 @@ export function ComponentScanner() {
     }
   };
 
+  const openCandidate = (c: Candidate) => {
+    if (c.info) {
+      setSelected(c.info);
+    } else if (c.id && c.id !== "breadboard") {
+      api.get<ComponentInfo>(`/api/components/${c.id}`).then(setSelected).catch(() => {});
+    }
+  };
+
   return (
     <div className="grid h-full gap-3 lg:grid-cols-2">
-      <div className="flex flex-col gap-3">
+      <div className="flex min-h-0 flex-col gap-3">
         <Panel
-          title="Experimental Component Scanner"
-          right={<Tag color="var(--color-warn)">EXPERIMENTAL</Tag>}
+          title="Camera Component Recognition"
+          right={
+            <span className={`mono text-[10px] ${connected ? "text-[var(--color-good)]" : "text-[var(--color-bad)]"}`}>
+              {connected ? "CAMERA LIVE" : "OFFLINE"}
+            </span>
+          }
           bodyClassName="overflow-y-auto"
         >
           <div className="flex flex-col gap-3 p-3">
             <div className="flex items-start gap-2 rounded-md border border-[var(--color-warn)]/30 bg-[var(--color-warn)]/5 p-2.5">
               <IconAlert size={14} className="mt-0.5 shrink-0 text-[var(--color-warn)]" />
               <p className="text-[11.5px] leading-snug text-[var(--color-ink-dim)]">
-                This scanner uses heuristic image analysis. It never claims a confident
-                identification — results are <span className="mono text-[var(--color-warn)]">possible matches</span>.
-                Use manual identification below for verified component information.
+                Point your camera at any electronic or robotics component. VisionLab identifies it
+                and opens its complete knowledge panel — <span className="mono text-[var(--color-ink)]">use, pins, voltage,
+                Arduino wiring, ESP32 notes</span> and safety. Results are honest <span className="mono text-[var(--color-warn)]">possible matches</span>,
+                never false certainties.
               </p>
             </div>
 
-            <button className="btn btn-primary self-start" onClick={scan} disabled={scanning}>
-              <IconScan size={14} /> {scanning ? "Scanning…" : "Scan current frame"}
-            </button>
+            {/* live feed + detection overlay */}
+            <div className="relative overflow-hidden rounded-md border border-[var(--color-line)] bg-black grid-bg">
+              <img
+                src={frame?.jpeg ? `data:image/jpeg;base64,${frame.jpeg}` : undefined}
+                alt="recognition feed"
+                className="h-full w-full object-contain"
+              />
+              {candidates.length > 0 && (
+                <svg className="absolute inset-0 h-full w-full" viewBox="0 0 640 480" preserveAspectRatio="xMidYMid meet">
+                  {candidates.map((c, i) => {
+                    if (!c.bbox || c.bbox.length !== 4) return null;
+                    const [bx, by, bw, bh] = c.bbox;
+                    return (
+                      <g key={i}>
+                        <rect
+                          x={bx}
+                          y={by}
+                          width={bw}
+                          height={bh}
+                          fill="none"
+                          stroke={c.info ? "var(--color-accent)" : "var(--color-warn)"}
+                          strokeWidth="1.6"
+                        />
+                        <rect x={bx} y={Math.max(0, by - 18)} width={Math.min(bw + 40, 640 - bx)} height="18" fill={c.info ? "#7c3aed" : "#b45309"} />
+                        <text x={bx + 4} y={Math.max(12, by - 5)} fontSize="10.5" fill="#fff" className="mono">
+                          {c.name} {Math.round(c.confidence * 100)}%
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              )}
+              {!connected && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                  <span className="mono text-[12px] uppercase tracking-widest text-[var(--color-warn)]">
+                    Connecting to vision service…
+                  </span>
+                </div>
+              )}
+            </div>
 
-            {scanNote && <p className="mono text-[10.5px] text-[var(--color-ink-faint)]">{scanNote}</p>}
+            <div className="flex items-center gap-2">
+              <button className="btn btn-primary" onClick={scan} disabled={scanning}>
+                <IconScan size={14} /> {scanning ? "Scanning…" : "Scan now"}
+              </button>
+              <button
+                className={`btn ${autoScan ? "" : ""}`}
+                style={{ borderColor: autoScan ? "var(--color-good)" : undefined }}
+                onClick={() => setAutoScan((a) => !a)}
+              >
+                <IconCamera size={14} /> Auto {autoScan ? "ON" : "OFF"}
+              </button>
+              <span className="mono ml-auto text-[10px] text-[var(--color-ink-faint)]">
+                {lastScan ? `last ${lastScan}` : "no scan yet"}
+              </span>
+            </div>
 
             {candidates.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {candidates.map((c, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-md border border-[var(--color-line)] px-3 py-2">
-                    <span className="text-[12.5px] text-[var(--color-ink)]">{c.name}</span>
+                  <button
+                    key={i}
+                    className="flex w-full items-center justify-between rounded-md border border-[var(--color-line)] px-3 py-2 text-left hover:border-[var(--color-accent)]"
+                    onClick={() => openCandidate(c)}
+                  >
+                    <span className="flex items-center gap-2 text-[12.5px] text-[var(--color-ink)]">
+                      {c.info && <IconRefresh size={12} className="text-[var(--color-accent)]" />}
+                      {c.name}
+                    </span>
                     <span className="mono text-[11px]" style={{ color: c.confidence >= 0.6 ? "var(--color-warn)" : "var(--color-ink-faint)" }}>
                       {Math.round(c.confidence * 100)}%
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
               <p className="text-[12px] text-[var(--color-ink-faint)]">
-                No scan results yet. Point the camera at a component and scan.
+                No candidates yet. Point the camera at a component and scan (or enable Auto).
               </p>
             )}
 
@@ -134,7 +228,7 @@ export function ComponentScanner() {
 
       <div className="flex min-h-0 flex-col gap-3">
         {selected ? (
-          <ComponentInfoPanel comp={selected} />
+          <ComponentInfoPanel comp={selected} onClose={() => setSelected(null)} />
         ) : (
           <Panel title="Component Information" bodyClassName="flex items-center justify-center">
             <p className="px-6 text-center text-[12px] text-[var(--color-ink-faint)]">
@@ -148,9 +242,18 @@ export function ComponentScanner() {
   );
 }
 
-export function ComponentInfoPanel({ comp }: { comp: ComponentInfo }) {
+export function ComponentInfoPanel({ comp, onClose }: { comp: ComponentInfo; onClose?: () => void }) {
   return (
-    <Panel title={comp.name} bodyClassName="overflow-y-auto" className="min-h-0">
+    <Panel
+      title={comp.name}
+      right={onClose ? (
+        <button className="mono text-[11px] text-[var(--color-ink-faint)] hover:text-[var(--color-ink)]" onClick={onClose}>
+          close
+        </button>
+      ) : undefined}
+      bodyClassName="overflow-y-auto"
+      className="min-h-0"
+    >
       <div className="space-y-4 p-3">
         <div className="flex items-center gap-2">
           <Tag color="var(--color-accent)">{comp.category}</Tag>
