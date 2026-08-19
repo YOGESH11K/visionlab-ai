@@ -18,6 +18,8 @@ dist/
 
 # Database / runtime data
 *.db
+*.db-wal
+*.db-shm
 *.sqlite3
 data/runtime/
 logs/
