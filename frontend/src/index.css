@@ -1,0 +1,189 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base-950: #070a0f;
+  --color-base-900: #0a0e14;
+  --color-base-850: #0e131c;
+  --color-base-800: #121827;
+  --color-base-700: #1a2233;
+  --color-base-600: #242e42;
+  --color-line: #1e2735;
+  --color-line-bright: #2b3748;
+  --color-ink: #e6eaf2;
+  --color-ink-dim: #9aa5b5;
+  --color-ink-faint: #5c6675;
+
+  --color-accent: #22d3ee;
+  --color-accent-dim: #0e7490;
+  --color-warn: #fbbf24;
+  --color-good: #34d399;
+  --color-bad: #f87171;
+  --color-violet: #a78bfa;
+
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-base-900);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Technical grid background */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(34, 211, 238, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.035) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Glass panel */
+.panel {
+  background: linear-gradient(180deg, rgba(18, 24, 39, 0.72), rgba(12, 17, 28, 0.86));
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+.panel-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Inputs */
+.input {
+  background: var(--color-base-800);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: var(--color-ink);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15);
+}
+.select {
+  background: var(--color-base-800);
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--color-ink);
+  font-size: 13px;
+  outline: none;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--color-line);
+  background: var(--color-base-800);
+  color: var(--color-ink);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.btn:hover {
+  border-color: var(--color-line-bright);
+  background: var(--color-base-700);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--color-accent);
+}
+.btn-primary:hover {
+  background: rgba(34, 211, 238, 0.2);
+}
+.btn-danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.1);
+  color: var(--color-bad);
+}
+.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.18);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-base-600);
+  border-radius: 4px;
+  border: 2px solid var(--color-base-900);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-line-bright);
+}
+
+/* Mono text */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Status dot pulse */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(52, 211, 153, 0);
+  }
+}
+.pulse-good {
+  animation: pulse-dot 2s infinite;
+}
+
+/* subtle glow used sparingly */
+.glow-cyan {
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.12);
+}
+
+/* focus rings for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}

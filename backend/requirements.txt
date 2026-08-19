@@ -1,0 +1,17 @@
+# Empire backend — production runtime dependencies (pinned)
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+pydantic==2.10.4
+pydantic-settings==2.7.0
+opencv-contrib-python==5.0.0.93
+mediapipe==1.0.1
+numpy==2.2.6
+pyserial==3.5
+httpx==0.28.1
+python-multipart==0.0.20
+psutil==7.2.2
+
+# --- Test-only dependencies (not installed in production) -----------------
+# pytest==8.3.4
+# httpx already listed above (used by tests + optional AI calls)

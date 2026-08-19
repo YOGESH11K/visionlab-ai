@@ -1,0 +1,30 @@
+# Render Blueprint — Empire backend
+# Deploy: connect this repo in Render Dashboard, or use Blueprint mode.
+# The service auto-builds with pip from backend/requirements.txt and runs uvicorn.
+services:
+  - type: web
+    name: empire-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: EMPIRE_HOST
+        value: 0.0.0.0
+      - key: EMPIRE_PORT
+        value: 8000
+      - key: EMPIRE_LOG_LEVEL
+        value: INFO
+      - key: EMPIRE_DEBUG
+        value: "false"
+      - key: EMPIRE_CAMERA_INDEX
+        value: "-1"
+      # Allow the Vercel-hosted frontend to call the API cross-origin.
+      # Replace with your real Vercel app URL(s) once deployed.
+      - key: EMPIRE_CORS_ORIGINS
+        value: https://visionlab-ai.vercel.app
+      # Optional: set your OpenAI-compatible key to enable the LLM assistant.
+      - key: EMPIRE_AI_API_KEY
+        sync: false

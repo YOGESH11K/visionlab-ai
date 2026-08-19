@@ -1,0 +1,688 @@
+{
+  "version": 1,
+  "description": "Empire component knowledge database. Add new components here; the app picks them up without code changes.",
+  "components": [
+    {
+      "id": "arduino_uno",
+      "name": "Arduino Uno",
+      "category": "board",
+      "aliases": ["uno", "arduino"],
+      "description": "ATmega328P development board with 14 digital I/O pins (6 PWM), 6 analog inputs, USB and 5V/3.3V regulators.",
+      "working": "The microcontroller runs your compiled sketch from flash. Digital pins read or drive 0/5V logic; analog pins sample 0-5V into 10-bit values (0-1023); PWM pins produce a 0-5V square wave with variable duty cycle to approximate analog output.",
+      "pins": [
+        {"name": "D0/D1", "function": "Serial RX/TX", "value": "0-5V digital"},
+        {"name": "D2-D13", "function": "Digital I/O", "value": "0-5V, D3/5/6/9/10/11 PWM"},
+        {"name": "A0-A5", "function": "Analog input", "value": "0-5V, 10-bit"},
+        {"name": "5V / 3.3V", "function": "Power out", "value": "5V / 3.3V"},
+        {"name": "GND", "function": "Ground", "value": "0V"},
+        {"name": "VIN", "function": "External power in", "value": "7-12V"}
+      ],
+      "voltage": "5V logic, 7-12V input (VIN)",
+      "current": "20mA max per pin, ~40mA per pin absolute max, 500mA via USB",
+      "interfaces": ["digital", "analog", "pwm", "uart", "i2c", "spi"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {
+          "title": "Blink LED on D13",
+          "wiring": "None (on-board LED) or LED + 220ohm resistor from D13 to GND",
+          "code": "void setup(){ pinMode(13,OUTPUT); }\nvoid loop(){ digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); delay(1000); }"
+        },
+        {
+          "title": "Read a button on D2",
+          "wiring": "Button between D2 and GND, 10k pull-up to 5V (or INPUT_PULLUP)",
+          "code": "void setup(){ pinMode(2,INPUT_PULLUP); Serial.begin(9600); }\nvoid loop(){ Serial.println(digitalRead(2)); delay(200); }"
+        },
+        {
+          "title": "Analog light sensor",
+          "wiring": "LDR + 10k resistor voltage divider from A0 to GND",
+          "code": "void setup(){ Serial.begin(9600); }\nvoid loop(){ Serial.println(analogRead(A0)); delay(200); }"
+        },
+        {
+          "title": "Fade LED with PWM",
+          "wiring": "LED + 220ohm resistor from D9 to GND",
+          "code": "void setup(){ pinMode(9,OUTPUT); }\nvoid loop(){ for(int i=0;i<=255;i++){ analogWrite(9,i); delay(10);} for(int i=255;i>=0;i--){ analogWrite(9,i); delay(10);} }"
+        },
+        {
+          "title": "Servo sweep",
+          "wiring": "Servo signal to D9, VCC to 5V, GND to GND",
+          "code": "#include <Servo.h>\nServo s;\nvoid setup(){ s.attach(9); }\nvoid loop(){ s.write(0); delay(500); s.write(180); delay(500); }"
+        }
+      ],
+      "esp32_notes": "ESP32 runs at 3.3V logic: do not feed 5V logic directly into ESP32 inputs without a divider. Many Arduino libraries port directly.",
+      "applications": ["First microcontroller", "Learning electronics", "Embedded prototyping", "School/college projects"],
+      "common_mistakes": ["Powering servos/motors from the 5V pin", "Exceeding 20mA per pin", "Feeding >5V into an I/O pin", "Forgetting common ground between board and sensors"],
+      "safety_notes": "Keep circuits under 5V unless using the VIN regulator. Disconnect USB before rewiring."
+    },
+    {
+      "id": "arduino_nano",
+      "name": "Arduino Nano",
+      "category": "board",
+      "aliases": ["nano"],
+      "description": "Compact breadboard-friendly ATmega328P board with the same core capabilities as the Uno.",
+      "working": "Same 8-bit AVR architecture as the Uno but in a small DIP-style footprint. 14 digital pins (6 PWM), 8 analog inputs (A0-A7), micro-USB programming.",
+      "pins": [
+        {"name": "D2-D13", "function": "Digital I/O", "value": "0-5V"},
+        {"name": "A0-A7", "function": "Analog input", "value": "0-5V"},
+        {"name": "5V / 3.3V", "function": "Power out", "value": "5V / 3.3V"},
+        {"name": "GND", "function": "Ground", "value": "0V"},
+        {"name": "VIN", "function": "External power in", "value": "7-12V"}
+      ],
+      "voltage": "5V logic, 7-12V input",
+      "current": "20mA per pin, 500mA via USB",
+      "interfaces": ["digital", "analog", "pwm", "uart", "i2c", "spi"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Blink built-in LED (D13/LED_BUILTIN)", "wiring": "None", "code": "void setup(){ pinMode(LED_BUILTIN,OUTPUT); }\nvoid loop(){ digitalWrite(LED_BUILTIN,HIGH); delay(500); digitalWrite(LED_BUILTIN,LOW); delay(500); }"},
+        {"title": "Serial hello", "wiring": "USB only", "code": "void setup(){ Serial.begin(9600); }\nvoid loop(){ Serial.println(\"Hello from Nano\"); delay(1000); }"},
+        {"title": "Analog read on A0", "wiring": "Potentiometer center pin to A0, outer pins to 5V and GND", "code": "void setup(){ Serial.begin(9600); }\nvoid loop(){ Serial.println(analogRead(A0)); delay(200); }"},
+        {"title": "PWM LED dimmer", "wiring": "LED + resistor D9-GND, pot to A0", "code": "void setup(){} void loop(){ int v=analogRead(A0)/4; analogWrite(9,v); }"}
+      ],
+      "esp32_notes": "Same caution: 3.3V logic on ESP32. The Nano's 5V output will damage ESP32 inputs directly.",
+      "applications": ["Breadboard prototypes", "Wearables", "Compact embedded projects"],
+      "common_mistakes": ["Assuming 5V-tolerant pins on ESP32 counterparts", "Incorrect orientation on breadboard"],
+      "safety_notes": "Check pin orientation before powering; the Nano is easy to insert backwards."
+    },
+    {
+      "id": "arduino_mega",
+      "name": "Arduino Mega",
+      "category": "board",
+      "aliases": ["mega", "mega2560"],
+      "description": "ATmega2560 board with 54 digital pins, 15 PWM, 16 analog inputs, 4 UARTs — for larger projects.",
+      "working": "Same 5V logic family as the Uno with far more I/O and memory (256KB flash, 8KB SRAM). Good for multi-sensor projects and multiple serial devices.",
+      "pins": [
+        {"name": "D0-D53", "function": "Digital I/O", "value": "0-5V, D2-13 & D44-46 PWM"},
+        {"name": "A0-A15", "function": "Analog input", "value": "0-5V, 10-bit"},
+        {"name": "Serial1-3", "function": "Extra UARTs", "value": "D19/D18, D17/D16, D15/D14"},
+        {"name": "5V / 3.3V", "function": "Power out", "value": "5V / 3.3V"},
+        {"name": "VIN", "function": "External power in", "value": "7-12V"}
+      ],
+      "voltage": "5V logic, 7-12V input",
+      "current": "20mA per pin",
+      "interfaces": ["digital", "analog", "pwm", "uart", "i2c", "spi"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Multi-serial debug", "wiring": "USB", "code": "void setup(){ Serial.begin(9600); Serial1.begin(9600); }\nvoid loop(){ Serial.println(\"main\"); Serial1.println(\"aux\"); delay(1000); }"},
+        {"title": "Many LEDs", "wiring": "8 LEDs + 220ohm resistors on D22-D29", "code": "void setup(){ for(int i=22;i<30;i++) pinMode(i,OUTPUT); }\nvoid loop(){ for(int i=22;i<30;i++){ digitalWrite(i,HIGH); delay(100); digitalWrite(i,LOW);} }"},
+        {"title": "Servo on D9", "wiring": "Servo signal D9", "code": "#include <Servo.h>\nServo s; void setup(){ s.attach(9); } void loop(){ s.write(90); delay(1000); }"},
+        {"title": "Read analog array", "wiring": "Pots on A0-A3", "code": "void setup(){ Serial.begin(9600); } void loop(){ for(int i=0;i<4;i++){ Serial.print(analogRead(i)); Serial.print(' ');} Serial.println(); delay(300); }"}
+      ],
+      "esp32_notes": "Mega is 5V; ESP32 is 3.3V. Use level shifters or dividers when mixing them.",
+      "applications": ["Robots with many servos/sensors", "3D printer controllers", "Complex labs"],
+      "common_mistakes": ["Wasting memory on huge strings", "Overloading 5V regulator"],
+      "safety_notes": "Use an external 5V supply for high-current loads, never through the USB port."
+    },
+    {
+      "id": "esp32",
+      "name": "ESP32",
+      "category": "board",
+      "aliases": ["esp32 devkit", "esp32-wroom"],
+      "description": "Dual-core 240MHz Wi-Fi + Bluetooth module widely used for IoT. 3.3V logic with many GPIOs, ADC, DAC, PWM, I2C, SPI, UART.",
+      "working": "Two Tensilica Xtensa cores run FreeRTOS. It boots from flash (Arduino core or ESP-IDF), provides Wi-Fi/BLE networking, and drives peripherals through multiplexed GPIO pins.",
+      "pins": [
+        {"name": "GPIO 0-39", "function": "GPIO / ADC / PWM", "value": "3.3V logic"},
+        {"name": "3V3", "function": "Power out", "value": "3.3V"},
+        {"name": "5V", "function": "USB power rail", "value": "5V in/out"},
+        {"name": "GND", "function": "Ground", "value": "0V"},
+        {"name": "EN", "function": "Enable / reset", "value": "pull high"},
+        {"name": "TX/RX", "function": "UART0", "value": "GPIO1/3"}
+      ],
+      "voltage": "3.3V logic, 3.3-5V USB power, up to 3.6V absolute max on inputs",
+      "current": "~12mA per GPIO (avoid sinking/sourcing large loads), total budget depends on regulator",
+      "interfaces": ["digital", "adc", "pwm", "uart", "i2c", "spi", "wifi", "ble"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Blink onboard LED", "wiring": "USB only", "code": "#define LED 2\nvoid setup(){ pinMode(LED,OUTPUT); }\nvoid loop(){ digitalWrite(LED,HIGH); delay(500); digitalWrite(LED,LOW); delay(500); }"},
+        {"title": "Wi-Fi scan", "wiring": "USB", "code": "#include <WiFi.h>\nvoid setup(){ Serial.begin(115200); WiFi.mode(WIFI_STA); WiFi.disconnect(); delay(100); Serial.println(\"scan...\"); int n=WiFi.scanNetworks(); Serial.println(n); }\nvoid loop(){}"},
+        {"title": "Web server toggle LED", "wiring": "LED+resistor on GPIO2", "code": "#include <WiFi.h>\nconst char* ssid=\"...\"; const char* pw=\"...\"; WiFiServer s(80);\nvoid setup(){ pinMode(2,OUTPUT); WiFi.begin(ssid,pw); while(WiFi.status()!=WL_CONNECTED) delay(500); s.begin(); }\nvoid loop(){ WiFiClient c=s.available(); if(c){ String r=c.readStringUntil('\\r'); if(r.indexOf(\"/on\")>0) digitalWrite(2,HIGH); if(r.indexOf(\"/off\")>0) digitalWrite(2,LOW); c.println(\"HTTP/1.1 200 OK\"); c.stop(); } }"},
+        {"title": "Read DHT22", "wiring": "DHT22 data -> GPIO4, VCC->3V3, GND->GND", "code": "#include <DHT.h>\nDHT d(4,DHT22); void setup(){ Serial.begin(115200); d.begin(); } void loop(){ Serial.print(d.readTemperature()); Serial.print(','); Serial.println(d.readHumidity()); delay(2000); }"}
+      ],
+      "esp32_notes": "ESP32 GPIOs are 3.3V and generally not 5V tolerant. ADC reads are nonlinear near extremes. Some pins (GPIO12, GPIO15) have boot-strapping functions — avoid them for critical output.",
+      "applications": ["IoT dashboards", "Wi-Fi robots", "Battery telemetry", "Smart home"],
+      "common_mistakes": ["Applying 5V to GPIO", "Sinking motor current from GPIO", "Using GPIO0 (boot pin) for output", "Not handling WiFi reconnect"],
+      "safety_notes": "Never exceed 3.6V on any GPIO. Power motors/servos from a separate supply sharing common ground."
+    },
+    {
+      "id": "led",
+      "name": "LED",
+      "category": "passive",
+      "aliases": ["light emitting diode", "light-emitting diode"],
+      "description": "Light-emitting diode. Polarized component that conducts current in one direction and emits light when forward-biased. Always use a current-limiting resistor.",
+      "working": "An LED drops a forward voltage (Vf, typ. ~2V red / ~3.2V blue-white) across its junction. The resistor sets current: R = (V_supply - Vf) / I_desired. Typical target 10-20mA.",
+      "pins": [
+        {"name": "Anode (+)", "function": "Long leg, connects to supply via resistor", "value": "Positive"},
+        {"name": "Cathode (-)", "function": "Short leg, connects to GND", "value": "Negative"}
+      ],
+      "voltage": "Vf ~1.8-3.3V depending on color",
+      "current": "Use 10-20mA; absolute max ~20-30mA (5mm)",
+      "interfaces": ["digital", "pwm"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Simple ON/OFF", "wiring": "LED anode->220ohm->D13, cathode->GND", "code": "void setup(){ pinMode(13,OUTPUT); } void loop(){ digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); delay(1000); }"},
+        {"title": "PWM fade", "wiring": "LED anode->220ohm->D9, cathode->GND", "code": "void setup(){} void loop(){ for(int i=0;i<=255;i++){ analogWrite(9,i); delay(8);} for(int i=255;i>=0;i--){ analogWrite(9,i); delay(8);} }"},
+        {"title": "Button-toggle LED", "wiring": "Button D2->GND (INPUT_PULLUP), LED D13", "code": "void setup(){ pinMode(2,INPUT_PULLUP); pinMode(13,OUTPUT); } void loop(){ if(!digitalRead(2)) digitalWrite(13,!digitalRead(13)); delay(150); }"},
+        {"title": "Night light", "wiring": "LDR divider A0, LED D9", "code": "void setup(){} void loop(){ int a=analogRead(A0); analogWrite(9, map(a,0,1023,255,0)); delay(50); }"},
+        {"title": "Blink SOS", "wiring": "LED D13", "code": "void b(int n){ for(int i=0;i<n;i++){ digitalWrite(13,HIGH); delay(200); digitalWrite(13,LOW); delay(200);} delay(400);} void setup(){ pinMode(13,OUTPUT); } void loop(){ b(3); b(3); b(3); delay(1000); }"}
+      ],
+      "esp32_notes": "Same resistor math; on ESP32 use 3.3V as supply, so R = (3.3 - Vf)/0.02 — a 100-220ohm resistor works for standard LEDs.",
+      "applications": ["Status indicators", "Lighting projects", "Visual feedback", "Night lights"],
+      "common_mistakes": ["No current-limiting resistor (kills the LED)", "Reversed polarity", "Insufficient GPIO drive for high-power LEDs"],
+      "safety_notes": "High-power LEDs need drivers/transistors and heatsinks — never drive them from a GPIO directly."
+    },
+    {
+      "id": "resistor",
+      "name": "Resistor",
+      "category": "passive",
+      "aliases": ["resistance", "r"],
+      "description": "Passive two-terminal component that limits current and divides voltage. Value read from color bands or measured with a multimeter.",
+      "working": "Obey's Ohm's law: V = I * R. Series resistors limit current to LEDs; voltage dividers scale signals; pull-ups/pull-downs define idle logic levels.",
+      "pins": [
+        {"name": "Terminal 1", "function": "Either end", "value": "Non-polarized"},
+        {"name": "Terminal 2", "function": "Either end", "value": "Non-polarized"}
+      ],
+      "voltage": "Any (within power rating, e.g. 0.25W)",
+      "current": "Limited by power rating: P = V*I, keep under 0.25W for 1/4W parts",
+      "interfaces": ["analog", "digital"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "LED current limit", "wiring": "220ohm in series with LED", "code": "// 220ohm with 5V: (5-2)/0.0135 ~ 220ohm\nvoid setup(){ pinMode(13,OUTPUT);} void loop(){ digitalWrite(13,HIGH); delay(500); digitalWrite(13,LOW); delay(500); }"},
+        {"title": "Pull-up for button", "wiring": "10k from D2 to 5V, button D2->GND", "code": "void setup(){ pinMode(2,INPUT);} void loop(){ if(!digitalRead(2)){ /* pressed */ } }"},
+        {"title": "LDR voltage divider", "wiring": "LDR A0->5V, 10k A0->GND", "code": "void setup(){ Serial.begin(9600);} void loop(){ Serial.println(analogRead(A0)); delay(200); }"},
+        {"title": "Voltage divider to scale 12V for ADC", "wiring": "10k from V_in to A0, 4.7k from A0 to GND", "code": "void setup(){ Serial.begin(9600);} void loop(){ float v=analogRead(A0)*5.0/1023.0; float vin=v*(10.0+4.7)/4.7; Serial.println(vin); delay(300); }"}
+      ],
+      "esp32_notes": "On 3.3V systems recalculate dividers so the ADC input stays below 3.3V.",
+      "applications": ["Current limiting", "Voltage division", "Pull-ups/downs", "Sensor scaling"],
+      "common_mistakes": ["Reading color bands incorrectly", "Exceeding power rating", "Using too-large values causing weak drive"],
+      "safety_notes": "A 1/4W resistor can burn if current is too high — keep P below the rating."
+    },
+    {
+      "id": "capacitor",
+      "name": "Capacitor",
+      "category": "passive",
+      "aliases": ["cap", "capacitance"],
+      "description": "Stores electrical energy in an electric field. Used for power decoupling, filtering noise, timing (RC), and smoothing sensor readings.",
+      "working": "Charges/discharges with a time constant tau = R*C. Larger capacitance smooths voltage rails; small caps (0.1uF) placed next to ICs suppress noise.",
+      "pins": [
+        {"name": "Anode/+ (electrolytic only)", "function": "Long leg / marked side", "value": "Positive (polarized)"},
+        {"name": "Cathode/-", "function": "Short leg / stripe", "value": "Negative (polarized)"}
+      ],
+      "voltage": "Pick a voltage rating >= 2x the circuit voltage (e.g. 10V for 5V rails)",
+      "current": "N/A — stored charge; ripple current limit for electrolytics",
+      "interfaces": ["analog"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Decouple the 5V rail", "wiring": "100uF across 5V and GND near the board; 0.1uF ceramic near ICs", "code": "// Hardware-only: place cap across power rails"},
+        {"title": "Debounce push button (RC)", "wiring": "10k from D2 to 5V, 0.1uF from D2 to GND, button D2->GND", "code": "void setup(){ pinMode(2,INPUT); Serial.begin(9600);} void loop(){ if(digitalRead(2)==LOW) Serial.println(\"pressed\"); delay(50); }"},
+        {"title": "Motor noise suppression", "wiring": "0.1uF across motor terminals; 470uF across supply", "code": "// Hardware-only"},
+        {"title": "Slow PWM smoothing into analog", "wiring": "100uF + 1k RC filter on PWM output", "code": "void setup(){ pinMode(9,OUTPUT);} void loop(){ analogWrite(9, 128); } // filtered to ~2.5V DC"}
+      ],
+      "esp32_notes": "ESP32 modules have internal decoupling; still add 100uF bulk + 0.1uF ceramic near loads.",
+      "applications": ["Power filtering", "Signal smoothing", "Timing", "Noise suppression"],
+      "common_mistakes": ["Reversing electrolytic polarity (can burst)", "Using under-rated voltage", "Oversizing bulk caps without current draw"],
+      "safety_notes": "Electrolytic capacitors are polarized. A reversed or over-voltage capacitor can fail violently."
+    },
+    {
+      "id": "potentiometer",
+      "name": "Potentiometer",
+      "category": "passive",
+      "aliases": ["pot", "variable resistor", "trimmer"],
+      "description": "Three-terminal variable resistor. Turning the shaft changes the resistance between the wiper and each end, giving an adjustable voltage when used as a divider.",
+      "working": "As a voltage divider between 5V and GND, the wiper voltage = 5V * (position fraction). Read with analogRead -> 0-1023 on AVR boards.",
+      "pins": [
+        {"name": "Pin 1", "function": "One end of track", "value": "Connect to 5V"},
+        {"name": "Pin 2 (wiper)", "function": "Variable tap", "value": "To ADC pin"},
+        {"name": "Pin 3", "function": "Other end of track", "value": "Connect to GND"}
+      ],
+      "voltage": "Use with any voltage up to its rating (typical 0-5V for Arduino)",
+      "current": "Track current kept small (mA range)",
+      "interfaces": ["analog"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Read position", "wiring": "Pins to 5V and GND, wiper to A0", "code": "void setup(){ Serial.begin(9600);} void loop(){ Serial.println(analogRead(A0)); delay(200); }"},
+        {"title": "Brightness control", "wiring": "Pot A0, LED D9", "code": "void setup(){} void loop(){ analogWrite(9, analogRead(A0)/4); }"},
+        {"title": "Servo angle control", "wiring": "Pot A0, servo D9", "code": "#include <Servo.h>\nServo s; void setup(){ s.attach(9);} void loop(){ s.write(map(analogRead(A0),0,1023,0,180)); delay(15); }"},
+        {"title": "Threshold adjust", "wiring": "Pot A0, LDR A1", "code": "void setup(){ Serial.begin(9600);} void loop(){ int t=analogRead(A0); int l=analogRead(A1); Serial.println(l < t ? \"DARK\" : \"LIGHT\"); delay(200); }"}
+      ],
+      "esp32_notes": "On ESP32 the ADC is 12-bit (0-4095) and nonlinear near the rails; map accordingly.",
+      "applications": ["Volume controls", "Calibration trimmers", "UI dials", "Analog thresholds"],
+      "common_mistakes": ["Swapping wiper and end pins", "Ignoring the nonlinear taper", "Loading the wiper with low impedance"],
+      "safety_notes": "Keep pot current low to avoid heating and wiper damage."
+    },
+    {
+      "id": "push_button",
+      "name": "Push Button",
+      "category": "passive",
+      "aliases": ["tactile switch", "button", "momentary switch"],
+      "description": "Momentary switch that connects its contacts only while pressed. Typically used with an internal or external pull-up resistor to give a clean HIGH/LOW signal.",
+      "working": "With INPUT_PULLUP, the pin reads HIGH when unpressed and LOW when pressed. Physical bounce is solved in firmware with debounce (delay or timestamp check).",
+      "pins": [
+        {"name": "A (1)", "function": "Terminal 1", "value": "Connected while pressed"},
+        {"name": "B (2)", "function": "Terminal 2", "value": "Connected while pressed"}
+      ],
+      "voltage": "5V / 3.3V logic compatible",
+      "current": "Negligible (pull-up current ~microamps)",
+      "interfaces": ["digital"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Read state with pull-up", "wiring": "Button between D2 and GND", "code": "void setup(){ pinMode(2,INPUT_PULLUP); Serial.begin(9600);} void loop(){ Serial.println(digitalRead(2)); delay(100); }"},
+        {"title": "Debounced toggle", "wiring": "Button D2->GND, LED D13", "code": "bool state=false; unsigned long last=0;\nvoid setup(){ pinMode(2,INPUT_PULLUP); pinMode(13,OUTPUT);}\nvoid loop(){ if(!digitalRead(2) && millis()-last>150){ state=!state; digitalWrite(13,state); last=millis();} }"},
+        {"title": "Counter", "wiring": "Button D2->GND, Serial", "code": "int c=0; unsigned long last=0;\nvoid setup(){ pinMode(2,INPUT_PULLUP); Serial.begin(9600);}\nvoid loop(){ if(!digitalRead(2) && millis()-last>150){ c++; Serial.println(c); last=millis();} }"},
+        {"title": "Menu navigation", "wiring": "Two buttons D2/D3->GND", "code": "int mode=0;\nvoid setup(){ pinMode(2,INPUT_PULLUP); pinMode(3,INPUT_PULLUP);}\nvoid loop(){ if(!digitalRead(2)) mode=(mode+1)%4; if(!digitalRead(3)) mode=(mode+3)%4; delay(150); }"}
+      ],
+      "esp32_notes": "Works identically; INPUT_PULLUP is available on ESP32 GPIOs.",
+      "applications": ["User input", "Reset switches", "Menu controls", "Interrupt triggers"],
+      "common_mistakes": ["Missing pull-up/pull-down", "Ignoring switch bounce", "Using analogRead on a digital pin"],
+      "safety_notes": "No special hazards for standard low-voltage buttons."
+    },
+    {
+      "id": "ldr",
+      "name": "LDR (Light Dependent Resistor)",
+      "category": "sensor",
+      "aliases": ["photoresistor", "light sensor", "photocell"],
+      "description": "Resistance drops as light intensity increases. Used in a voltage divider to create a light-level signal readable by an ADC.",
+      "working": "In a divider with a fixed resistor R, the voltage at the junction changes with LDR resistance. Dark -> high resistance -> high/low voltage depending on placement. Read via analogRead.",
+      "pins": [
+        {"name": "Terminal 1", "function": "Either end", "value": "Non-polarized"},
+        {"name": "Terminal 2", "function": "Either end", "value": "Non-polarized"}
+      ],
+      "voltage": "5V / 3.3V via divider",
+      "current": "Microamps to low mA through the divider",
+      "interfaces": ["analog"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Light level", "wiring": "LDR 5V->A0, 10k A0->GND", "code": "void setup(){ Serial.begin(9600);} void loop(){ Serial.println(analogRead(A0)); delay(200); }"},
+        {"title": "Night light", "wiring": "LDR divider A0, LED D9", "code": "void setup(){} void loop(){ int a=analogRead(A0); analogWrite(9, map(a,0,1023,255,0)); delay(50); }"},
+        {"title": "Dark alarm", "wiring": "LDR divider A0, buzzer D8", "code": "void setup(){ pinMode(8,OUTPUT);} void loop(){ if(analogRead(A0)<200){ tone(8,1000); delay(200); noTone(8);} delay(100); }"},
+        {"title": "Auto lamp with hysteresis", "wiring": "LDR A0, relay D7, lamp", "code": "void setup(){ pinMode(7,OUTPUT);} void loop(){ int a=analogRead(A0); digitalWrite(7, a<300 ? HIGH : digitalRead(7)); if(a>400) digitalWrite(7,LOW); delay(200); }"}
+      ],
+      "esp32_notes": "Works the same; remember the ESP32 ADC is 12-bit. Add a cap (0.1uF) to A0 for stable reads.",
+      "applications": ["Ambient light detection", "Night lights", "Solar tracking", "Alarm triggers"],
+      "common_mistakes": ["Reading value without a divider", "Using analogRead on digital-only pins", "Noise without a filter cap"],
+      "safety_notes": "Expose only the top surface to light for consistent readings."
+    },
+    {
+      "id": "pir",
+      "name": "PIR Motion Sensor",
+      "category": "sensor",
+      "aliases": ["motion sensor", "hc-sr501", "passive infrared"],
+      "description": "Passive infrared sensor that detects moving heat sources (people/animals) within its range. Digital HIGH output while motion is detected.",
+      "working": "Two pyroelectric elements compare infrared heat patterns; moving IR changes trigger the detector. The module outputs a digital pulse with adjustable sensitivity/delay (pot screws on the module).",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "5V (3.3-12V on most modules)"},
+        {"name": "OUT", "function": "Digital output", "value": "3.3V HIGH on motion"},
+        {"name": "GND", "function": "Ground", "value": "0V"}
+      ],
+      "voltage": "5V typical (modules often accept 3.3-12V)",
+      "current": "~1-2mA (less than many sensors)",
+      "interfaces": ["digital"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Motion detected print", "wiring": "PIR OUT->D2, VCC->5V, GND->GND", "code": "void setup(){ pinMode(2,INPUT); Serial.begin(9600);} void loop(){ if(digitalRead(2)) Serial.println(\"MOTION\"); delay(200); }"},
+        {"title": "Alarm with buzzer", "wiring": "PIR D2, buzzer D8", "code": "void setup(){ pinMode(2,INPUT); pinMode(8,OUTPUT);} void loop(){ if(digitalRead(2)){ tone(8,2000,300); } delay(200); }"},
+        {"title": "Lights on when moving", "wiring": "PIR D2, relay D7", "code": "void setup(){ pinMode(2,INPUT); pinMode(7,OUTPUT);} void loop(){ digitalWrite(7, digitalRead(2)); delay(100); }"},
+        {"title": "Occupancy counter (edge-triggered)", "wiring": "PIR D2, Serial", "code": "int last=0,count=0; void setup(){ pinMode(2,INPUT); Serial.begin(9600);} void loop(){ int now=digitalRead(2); if(now && !last){ count++; Serial.println(count);} last=now; delay(50); }"}
+      ],
+      "esp32_notes": "Works on 3.3V-tolerant GPIOs; many modules output 3.3V HIGH which is ESP32-safe.",
+      "applications": ["Security systems", "Automatic lights", "Room occupancy", "Alarms"],
+      "common_mistakes": ["Not waiting 30-60s warm-up", "Mounting near heat sources", "Placing where IR is blocked", "Re-triggering on your own motion"],
+      "safety_notes": "The PIR senses heat, not motion type — large animals trigger it too."
+    },
+    {
+      "id": "hcsr04",
+      "name": "HC-SR04",
+      "category": "sensor",
+      "aliases": ["ultrasonic sensor", "distance sensor", "range finder"],
+      "description": "Ultrasonic distance sensor measuring 2-400cm by sending a 40kHz pulse and timing the echo. Two control pins: TRIG (start) and ECHO (return).",
+      "working": "A 10us HIGH on TRIG starts a burst of 40kHz ultrasound. The module raises ECHO HIGH when the echo returns; the pulse width is proportional to distance. Distance(cm) = pulseWidth(us) / 58.",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "5V (2-5.5V typical)"},
+        {"name": "GND", "function": "Ground", "value": "0V"},
+        {"name": "TRIG", "function": "Trigger input", "value": "10us HIGH pulse"},
+        {"name": "ECHO", "function": "Echo output", "value": "5V pulse; use divider for 3.3V boards"}
+      ],
+      "voltage": "5V power; ECHO outputs 5V (damage risk on 3.3V ESP32 — use a resistor divider)",
+      "current": "~15mA active, ~2mA idle",
+      "interfaces": ["digital", "pwm"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Measure distance", "wiring": "TRIG->D9, ECHO->D10, VCC->5V, GND->GND", "code": "void setup(){ Serial.begin(9600); pinMode(9,OUTPUT); pinMode(10,INPUT); }\nvoid loop(){ digitalWrite(9,LOW); delayMicroseconds(2); digitalWrite(9,HIGH); delayMicroseconds(10); digitalWrite(9,LOW); long d=pulseIn(10,HIGH); float cm=d/58.0; Serial.print(cm); Serial.println(\" cm\"); delay(500); }"},
+        {"title": "Object distance alarm", "wiring": "TRIG D9, ECHO D10, buzzer D8", "code": "float dist(){ digitalWrite(9,LOW); delayMicroseconds(2); digitalWrite(9,HIGH); delayMicroseconds(10); digitalWrite(9,LOW); return pulseIn(10,HIGH)/58.0; }\nvoid setup(){ pinMode(9,OUTPUT); pinMode(10,INPUT); pinMode(8,OUTPUT); }\nvoid loop(){ if(dist()<20){ tone(8,1500,200);} delay(300); }"},
+        {"title": "Servo scanner", "wiring": "TRIG D9, ECHO D10, servo D6", "code": "#include <Servo.h>\nServo s; float dist(){ digitalWrite(9,LOW); delayMicroseconds(2); digitalWrite(9,HIGH); delayMicroseconds(10); digitalWrite(9,LOW); return pulseIn(10,HIGH)/58.0; }\nvoid setup(){ pinMode(9,OUTPUT); pinMode(10,INPUT); s.attach(6); Serial.begin(9600); }\nvoid loop(){ for(int a=0;a<=180;a+=30){ s.write(a); delay(300); Serial.print(a); Serial.print(\" \"); Serial.println(dist()); } }"},
+        {"title": "Smart door", "wiring": "TRIG D9, ECHO D10, servo D6 (door)", "code": "#include <Servo.h>\nServo d; float dist(){ digitalWrite(9,LOW); delayMicroseconds(2); digitalWrite(9,HIGH); delayMicroseconds(10); digitalWrite(9,LOW); return pulseIn(10,HIGH)/58.0; }\nvoid setup(){ pinMode(9,OUTPUT); pinMode(10,INPUT); d.attach(6); }\nvoid loop(){ if(dist()<50) d.write(90); else d.write(0); delay(200); }"},
+        {"title": "Traffic light with distance", "wiring": "TRIG D9, ECHO D10, LEDs D2-D4", "code": "float dist(){ digitalWrite(9,LOW); delayMicroseconds(2); digitalWrite(9,HIGH); delayMicroseconds(10); digitalWrite(9,LOW); return pulseIn(10,HIGH)/58.0; }\nvoid setup(){ pinMode(9,OUTPUT); pinMode(10,INPUT); for(int i=2;i<=4;i++) pinMode(i,OUTPUT); }\nvoid loop(){ float d=dist(); digitalWrite(2,d>50); digitalWrite(3,d>25&&d<=50); digitalWrite(4,d<=25); delay(200); }"}
+      ],
+      "esp32_notes": "CRITICAL: ECHO outputs 5V. On ESP32 use a voltage divider (e.g. 1k series + 2k to GND) or a level shifter to avoid killing the GPIO. Many libraries support ESP32 directly.",
+      "applications": ["Distance measurement", "Parking sensors", "Robot obstacle avoidance", "Liquid level", "Smart doorbells"],
+      "common_mistakes": ["Connecting ECHO directly to a 3.3V board", "Blocked/angled surfaces giving bad readings", "Reading faster than the ping cycle (min ~60ms)", "Foam/cloth absorbing ultrasound"],
+      "safety_notes": "Point away from ears — the 40kHz burst is harmless but keep within typical sensor voltage."
+    },
+    {
+      "id": "dht11",
+      "name": "DHT11",
+      "category": "sensor",
+      "aliases": ["temperature sensor", "humidity sensor", "temp humidity"],
+      "description": "Low-cost digital temperature and humidity sensor (0-50C, 20-90% RH). One-wire data output at 1Hz sampling rate.",
+      "working": "The sensor outputs a serial bit stream on the data pin using a custom one-wire protocol. The DHT library handles timing. Accuracy: +-2C, +-5% RH. Max one sample per second.",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "3.3-5V"},
+        {"name": "DATA", "function": "1-wire data", "value": "Digital, requires pull-up (4.7-10k)"},
+        {"name": "NC", "function": "Not connected", "value": "-"},
+        {"name": "GND", "function": "Ground", "value": "0V"}
+      ],
+      "voltage": "3.3-5V",
+      "current": "~0.3mA measuring, 60uA standby",
+      "interfaces": ["digital", "one-wire"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Read temp & humidity", "wiring": "DATA->D2 with 10k pull-up to 5V, VCC->5V, GND->GND", "code": "#include <DHT.h>\nDHT d(2,DHT11); void setup(){ Serial.begin(9600); d.begin(); } void loop(){ Serial.print(d.readTemperature()); Serial.print(\"C \"); Serial.println(d.readHumidity()); delay(2000); }"},
+        {"title": "LCD display", "wiring": "DATA D2, LCD I2C SDA A4 SCL A5", "code": "#include <DHT.h>\n#include <LiquidCrystal_I2C.h>\nDHT d(2,DHT11); LiquidCrystal_I2C lcd(0x27,16,2);\nvoid setup(){ lcd.init(); lcd.backlight(); d.begin(); } void loop(){ lcd.setCursor(0,0); lcd.print(d.readTemperature()); lcd.print(\"C\"); lcd.setCursor(0,1); lcd.print(d.readHumidity()); lcd.print(\"%\"); delay(2000); }"},
+        {"title": "Climate alarm", "wiring": "DATA D2, buzzer D8", "code": "#include <DHT.h>\nDHT d(2,DHT11); void setup(){ d.begin(); pinMode(8,OUTPUT); Serial.begin(9600); } void loop(){ float t=d.readTemperature(); if(t>30){ tone(8,1200,200);} Serial.println(t); delay(2000); }"},
+        {"title": "Data to serial for plotting", "wiring": "DATA D2", "code": "#include <DHT.h>\nDHT d(2,DHT11); void setup(){ d.begin(); Serial.begin(9600); } void loop(){ Serial.print(d.readTemperature()); Serial.print(\",\"); Serial.println(d.readHumidity()); delay(2000); }"}
+      ],
+      "esp32_notes": "Works on 3.3V; pull-up can be 4.7k to 3V3. The one-wire timing is handled by the library.",
+      "applications": ["Room temperature monitor", "Greenhouse control", "Weather stations", "HVAC"],
+      "common_mistakes": ["Reading faster than 1Hz", "Forgetting the pull-up resistor", "Using a damaged/duplicate DHT11 module", "Wrong library pin argument"],
+      "safety_notes": "Keep out of condensation/direct water; DHT11 is not waterproof."
+    },
+    {
+      "id": "dht22",
+      "name": "DHT22 / AM2302",
+      "category": "sensor",
+      "aliases": ["am2302", "temperature sensor", "humidity sensor"],
+      "description": "Higher-accuracy digital temperature (-40-80C) and humidity (0-100%) sensor with 0.5C / 2-5% RH accuracy and 2s sampling.",
+      "working": "Same one-wire protocol as DHT11 but with 16-bit readings and better accuracy. Slightly slower sampling (max every 2 seconds).",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "3.3-5V"},
+        {"name": "DATA", "function": "1-wire data", "value": "Digital, pull-up 4.7-10k"},
+        {"name": "NC", "function": "Not connected", "value": "-"},
+        {"name": "GND", "function": "Ground", "value": "0V"}
+      ],
+      "voltage": "3.3-5.5V",
+      "current": "~1-1.5mA measuring",
+      "interfaces": ["digital", "one-wire"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Read temp & humidity", "wiring": "DATA->D2 + 10k pull-up, VCC->5V, GND->GND", "code": "#include <DHT.h>\nDHT d(2,DHT22); void setup(){ Serial.begin(9600); d.begin(); } void loop(){ Serial.print(d.readTemperature()); Serial.print(\"C \"); Serial.println(d.readHumidity()); delay(2000); }"},
+        {"title": "OLED display", "wiring": "DATA D2, OLED I2C A4/A5", "code": "#include <DHT.h>\n#include <Adafruit_SSD1306.h>\nDHT d(2,DHT22); Adafruit_SSD1306 o(128,64,&Wire,-1);\nvoid setup(){ d.begin(); o.begin(SSD1306_SWITCHCAPVCC,0x3C); } void loop(){ o.clearDisplay(); o.setCursor(0,0); o.print(d.readTemperature()); o.println(\"C\"); o.print(d.readHumidity()); o.println(\"%\"); o.display(); delay(2000); }"},
+        {"title": "Auto fan control", "wiring": "DATA D2, MOSFET/relay D9", "code": "#include <DHT.h>\nDHT d(2,DHT22); void setup(){ d.begin(); pinMode(9,OUTPUT); } void loop(){ digitalWrite(9, d.readTemperature()>28 ? HIGH : LOW); delay(2000); }"},
+        {"title": "Logged weather", "wiring": "DATA D2, Serial", "code": "#include <DHT.h>\nDHT d(2,DHT22); void setup(){ d.begin(); Serial.begin(115200); } void loop(){ Serial.print(\"T=\"); Serial.print(d.readTemperature()); Serial.print(\" H=\"); Serial.println(d.readHumidity()); delay(2000); }"}
+      ],
+      "esp32_notes": "3.3V compatible. Pull-up to 3V3 works well; keep data line short (<5m).",
+      "applications": ["Precise climate monitoring", "Incubators", "Greenhouse automation", "Server room monitoring"],
+      "common_mistakes": ["Sampling faster than 2s", "Long unshielded data lines", "Missing pull-up"],
+      "safety_notes": "Protect from condensation; the sensor itself is not waterproof."
+    },
+    {
+      "id": "ir_sensor",
+      "name": "IR Sensor (IR Receiver)",
+      "category": "sensor",
+      "aliases": ["ir receiver", "ir remote", "infrared", "tsop"],
+      "description": "Infrared receiver that decodes 38kHz IR remote signals into digital data, or IR obstacle sensor using emitter/detector pair. Two common variants exist.",
+      "working": "IR receiver modules (TSOP38238) demodulate 38kHz carrier and output the encoded signal to a pin for libraries like IRremote. IR obstacle modules reflect IR off nearby objects into a detector, outputting digital HIGH/LOW.",
+      "pins": [
+        {"name": "OUT (receiver)", "function": "Demodulated signal", "value": "Digital, active LOW"},
+        {"name": "VCC", "function": "Power", "value": "3.3-5V"},
+        {"name": "GND", "function": "Ground", "value": "0V"}
+      ],
+      "voltage": "3.3-5V",
+      "current": "~1mA receiver, ~20mA obstacle emitter",
+      "interfaces": ["digital"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Decode remote codes", "wiring": "IR receiver OUT->D11, VCC->5V, GND->GND", "code": "#include <IRremote.h>\nIRrecv ir(11); decode_results r; void setup(){ ir.enableIRIn(); Serial.begin(9600); } void loop(){ if(ir.decode(&r)){ Serial.println(r.value, HEX); ir.resume(); } }"},
+        {"title": "Remote-controlled LED", "wiring": "IR OUT D11, LED D13", "code": "#include <IRremote.h>\nIRrecv ir(11); decode_results r; void setup(){ ir.enableIRIn(); pinMode(13,OUTPUT);} void loop(){ if(ir.decode(&r)){ if(r.value==0xFF10EF) digitalWrite(13,HIGH); if(r.value==0xFF5AA5) digitalWrite(13,LOW); ir.resume(); } }"},
+        {"title": "Line/obstacle follower", "wiring": "IR obstacle module OUT->D2, VCC->5V", "code": "void setup(){ pinMode(2,INPUT); Serial.begin(9600);} void loop(){ Serial.println(digitalRead(2)); delay(100); }"},
+        {"title": "Wall avoidance robot", "wiring": "IR obstacle OUT D2, motor driver IN1/IN2 D3/D4", "code": "void setup(){ pinMode(2,INPUT); pinMode(3,OUTPUT); pinMode(4,OUTPUT);} void loop(){ if(digitalRead(2)){ digitalWrite(3,LOW); digitalWrite(4,HIGH);} else { digitalWrite(3,HIGH); digitalWrite(4,LOW);} }"}
+      ],
+      "esp32_notes": "IRremote and IRrecv work on ESP32; use a 3.3V module or check the module's output voltage.",
+      "applications": ["Remote controls", "Obstacle avoidance", "Line following", "Proximity sensing"],
+      "common_mistakes": ["Mixing receiver and obstacle module wiring", "Pointing receiver away from remote", "Using wrong IR library"],
+      "safety_notes": "IR is invisible — don't look directly into high-power IR LEDs."
+    },
+    {
+      "id": "servo",
+      "name": "Servo Motor",
+      "category": "actuator",
+      "aliases": ["sg90", "mg996r", "servo motor", "rc servo"],
+      "description": "Positional feedback motor that rotates to a commanded angle (usually 0-180). Three wires: power, ground, signal. Driven by a 50Hz PWM pulse (1ms=0deg, 1.5ms=90deg, 2ms=180deg).",
+      "working": "The signal wire receives a pulse train; the servo's internal controller compares pulse width to its feedback pot position and drives the motor to match. The Servo library generates the pulses.",
+      "pins": [
+        {"name": "Signal (orange/yellow)", "function": "PWM control", "value": "Pulse 1-2ms @ 50Hz"},
+        {"name": "VCC (red)", "function": "Power", "value": "5-6V (SG90) or 6-7.4V (MG996R)"},
+        {"name": "GND (brown/black)", "function": "Ground", "value": "0V, common with board"}
+      ],
+      "voltage": "5-6V typical; MG996R up to 7.4V",
+      "current": "100-250mA idle, up to 500mA-1A stall (SG90); MG996R up to 2.5A stall",
+      "interfaces": ["pwm"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Basic sweep", "wiring": "Signal->D9, VCC->5V, GND->GND", "code": "#include <Servo.h>\nServo s; void setup(){ s.attach(9); } void loop(){ for(int a=0;a<=180;a+=5){ s.write(a); delay(15);} for(int a=180;a>=0;a-=5){ s.write(a); delay(15);} }"},
+        {"title": "Pot position", "wiring": "Signal D9, pot wiper A0", "code": "#include <Servo.h>\nServo s; void setup(){ s.attach(9); } void loop(){ s.write(map(analogRead(A0),0,1023,0,180)); delay(15); }"},
+        {"title": "Distance-based door", "wiring": "Signal D9, TRIG D6, ECHO D7", "code": "#include <Servo.h>\nServo d; float dist(){ digitalWrite(6,LOW); delayMicroseconds(2); digitalWrite(6,HIGH); delayMicroseconds(10); digitalWrite(6,LOW); return pulseIn(7,HIGH)/58.0; }\nvoid setup(){ d.attach(9); pinMode(6,OUTPUT); pinMode(7,INPUT);} void loop(){ d.write(dist()<50?90:0); delay(200); }"},
+        {"title": "Pan-tilt camera", "wiring": "Pan->D9, Tilt->D10, VCC->5V", "code": "#include <Servo.h>\nServo pan, tilt; void setup(){ pan.attach(9); tilt.attach(10); } void loop(){ for(int a=0;a<=180;a+=10){ pan.write(a); tilt.write(map(a,0,180,45,135)); delay(50);} }"}
+      ],
+      "esp32_notes": "ESP32 servo libraries use the LEDC PWM peripheral; 5-6V supply recommended, never power servos from the board's 3.3V rail. Use a separate 5V supply with common ground.",
+      "applications": ["Robot arms", "Camera pan/tilt", "Door locks", "RC models", "Automatic doors"],
+      "common_mistakes": ["Powering servo from 5V pin (brownouts/resets)", "Forcing past mechanical stops (0/180)", "Missing common ground", "Sinking servo current through GPIO"],
+      "safety_notes": "High-torque servos can pinch fingers. Use an external power supply for anything beyond a single small SG90."
+    },
+    {
+      "id": "dc_motor",
+      "name": "DC Motor",
+      "category": "actuator",
+      "aliases": ["motor", "geared motor", "brushed motor"],
+      "description": "Spins continuously when DC voltage is applied. Direction reverses with polarity; speed controlled by PWM. Needs a driver (transistor/MOSFET/H-bridge) because GPIOs can't source motor current.",
+      "working": "Current through the armature creates torque. With an H-bridge you can reverse polarity for direction; PWM on the enable/speed line sets average voltage = speed. Add a flyback diode to protect the driver from back-EMF.",
+      "pins": [
+        {"name": "Terminal 1 (M+)", "function": "Motor terminal", "value": "Driver output"},
+        {"name": "Terminal 2 (M-)", "function": "Motor terminal", "value": "Driver output"}
+      ],
+      "voltage": "Typically 3-12V (check rating)",
+      "current": "Stall current can be 5-10x running current",
+      "interfaces": ["pwm", "digital"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "On/off via transistor", "wiring": "NPN transistor: motor +12V->motor->collector, emitter->GND, base->1k->D9, flyback diode across motor", "code": "void setup(){ pinMode(9,OUTPUT);} void loop(){ digitalWrite(9,HIGH); delay(2000); digitalWrite(9,LOW); delay(2000); }"},
+        {"title": "Speed control", "wiring": "MOSFET gate->D9 (10k pulldown), motor in drain, flyback diode", "code": "void setup(){ pinMode(9,OUTPUT);} void loop(){ for(int i=0;i<=255;i+=10){ analogWrite(9,i); delay(100);} for(int i=255;i>=0;i-=10){ analogWrite(9,i); delay(100);} }"},
+        {"title": "Direction with L298N", "wiring": "IN1->D6, IN2->D7, ENA->D9, motor to OUT1/OUT2", "code": "void setup(){ pinMode(6,OUTPUT); pinMode(7,OUTPUT); pinMode(9,OUTPUT);} void loop(){ digitalWrite(6,HIGH); digitalWrite(7,LOW); analogWrite(9,180); delay(2000); digitalWrite(6,LOW); digitalWrite(7,HIGH); delay(2000); }"},
+        {"title": "Fan control", "wiring": "MOSFET D9, fan 12V", "code": "void setup(){ pinMode(9,OUTPUT);} void loop(){ int t=analogRead(A0); analogWrite(9, map(t,0,1023,0,255)); delay(100); }"}
+      ],
+      "esp32_notes": "Same driver concept; ESP32 PWM via ledcSetup/ledcAttachPin. Use a motor driver module for anything bigger than a toy motor.",
+      "applications": ["Robots", "Fans", "Pumps", "Conveyors", "Car chassis"],
+      "common_mistakes": ["Connecting motor directly to GPIO", "No flyback diode (kills transistors)", "Missing common ground with driver", "Overloading the board regulator"],
+      "safety_notes": "Motors cause mechanical hazards and high stall currents — always use a suitable driver and supply."
+    },
+    {
+      "id": "buzzer",
+      "name": "Buzzer",
+      "category": "actuator",
+      "aliases": ["piezo buzzer", "active buzzer", "passive buzzer", "speaker"],
+      "description": "Generates sound. Active buzzers beep when powered (self-oscillating); passive (piezo) buzzers need a PWM/tone signal to produce a tone.",
+      "working": "Active: applies voltage -> fixed tone. Passive: apply a square wave (tone() function) -> frequency-controlled sound. Piezo elements also generate voltage when pressed (can be used as knock sensor).",
+      "pins": [
+        {"name": "+ / S", "function": "Signal/power", "value": "Positive"},
+        {"name": "- / GND", "function": "Ground", "value": "Negative"}
+      ],
+      "voltage": "3.3-5V",
+      "current": "~20-30mA active buzzer",
+      "interfaces": ["digital", "pwm"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Beep on button", "wiring": "Buzzer +->D8, -->GND, button D2->GND", "code": "void setup(){ pinMode(2,INPUT_PULLUP); pinMode(8,OUTPUT);} void loop(){ if(!digitalRead(2)){ tone(8,1000); } else { noTone(8); } }"},
+        {"title": "Alarm tones", "wiring": "Buzzer D8", "code": "void setup(){ pinMode(8,OUTPUT);} void loop(){ tone(8,2000); delay(300); noTone(8); delay(200); tone(8,500); delay(300); noTone(8); delay(500); }"},
+        {"title": "Melody", "wiring": "Passive buzzer D8", "code": "int mel[]={262,294,330,392}; void setup(){ pinMode(8,OUTPUT);} void loop(){ for(int i=0;i<4;i++){ tone(8,mel[i]); delay(300); } noTone(8); delay(500); }"},
+        {"title": "Knock sensor (piezo as input)", "wiring": "Piezo across A0-GND with 1M resistor", "code": "void setup(){ Serial.begin(9600);} void loop(){ int v=analogRead(A0); if(v>100) Serial.println(\"KNOCK\"); delay(50); }"}
+      ],
+      "esp32_notes": "Use ledcWriteTone or tone() (ESP32 Arduino core supports tone()). Keep duty cycle moderate to avoid clipping.",
+      "applications": ["Alarms", "Feedback tones", "Melodies", "Knock detection"],
+      "common_mistakes": ["Using an active buzzer expecting tones", "Missing resistor (though many modules have it)", "Feeding PWM to an active buzzer (constant loud beep)"],
+      "safety_notes": "Loud buzzers can damage hearing at close range; test with low volume first."
+    },
+    {
+      "id": "relay",
+      "name": "Relay Module",
+      "category": "actuator",
+      "aliases": ["relay switch", "srd-05vdc", "electromechanical relay"],
+      "description": "Electromechanical switch that lets a low-power signal (5V) control high-voltage/high-current loads (lamps, appliances). The module includes the transistor driver and diode.",
+      "working": "A coil energizes to move the switch contact (NO/COM/NC). When IN is LOW (or HIGH depending on module) the coil activates. Provides electrical isolation between control and load circuits.",
+      "pins": [
+        {"name": "VCC", "function": "Coil power", "value": "5V (3.3V on some)"},
+        {"name": "GND", "function": "Ground", "value": "0V"},
+        {"name": "IN (IN1...)", "function": "Control input", "value": "Active LOW/HIGH (check module)"},
+        {"name": "COM", "function": "Common contact", "value": "Load side"},
+        {"name": "NO / NC", "function": "Normally open / closed", "value": "Load side"}
+      ],
+      "voltage": "Coil 5V; contacts rated e.g. 10A @ 250VAC (read your relay)",
+      "current": "Coil ~70mA (relay module), contacts per rating",
+      "interfaces": ["digital"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Control a lamp", "wiring": "IN->D7, VCC->5V, GND->GND; lamp on NO-COM", "code": "void setup(){ pinMode(7,OUTPUT);} void loop(){ digitalWrite(7,HIGH); delay(2000); digitalWrite(7,LOW); delay(2000); }"},
+        {"title": "LDR-triggered lamp", "wiring": "LDR A0, relay IN D7", "code": "void setup(){ pinMode(7,OUTPUT);} void loop(){ digitalWrite(7, analogRead(A0)<300 ? HIGH : LOW); delay(200); }"},
+        {"title": "PIR security light", "wiring": "PIR D2, relay IN D7", "code": "void setup(){ pinMode(2,INPUT); pinMode(7,OUTPUT);} void loop(){ digitalWrite(7, digitalRead(2)); delay(100); }"},
+        {"title": "Pump controller", "wiring": "Relay IN D7, soil moisture A0", "code": "void setup(){ pinMode(7,OUTPUT);} void loop(){ if(analogRead(A0)<400) digitalWrite(7,HIGH); else digitalWrite(7,LOW); delay(500); }"}
+      ],
+      "esp32_notes": "Relay modules often trigger on LOW. ESP32 GPIO is 3.3V but usually drives the module's transistor fine. Use optocoupled modules for isolation.",
+      "applications": ["Home automation", "Lamp control", "Pump/motor control", "High-voltage switching"],
+      "common_mistakes": ["Connecting mains without insulation/proper enclosure", "Wrong NO vs NC usage", "Module trigger logic inverted (LOW vs HIGH)", "Missing flyback protection on raw relays"],
+      "safety_notes": "MAINS VOLTAGE IS DANGEROUS. Isolate, enclose, fuse, and double-check wiring before powering anything above 24V."
+    },
+    {
+      "id": "oled",
+      "name": "OLED Display (SSD1306)",
+      "category": "display",
+      "aliases": ["ssd1306", "0.96 oled", "oled display"],
+      "description": "0.96-inch 128x64 monochrome OLED driven by the SSD1306 controller over I2C (default 0x3C). Great for compact status displays.",
+      "working": "The SSD1306 has its own RAM framebuffer. You write pixels/text via a library (Adafruit_SSD1306) which refreshes over I2C. I2C needs pull-ups (module usually has them).",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "3.3-5V"},
+        {"name": "GND", "function": "Ground", "value": "0V"},
+        {"name": "SCL", "function": "I2C clock", "value": "A5 (Uno) / GPIO22 (ESP32)"},
+        {"name": "SDA", "function": "I2C data", "value": "A4 (Uno) / GPIO21 (ESP32)"}
+      ],
+      "voltage": "3.3-5V",
+      "current": "~20-30mA with display on",
+      "interfaces": ["i2c"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Hello text", "wiring": "VCC->5V, GND, SDA->A4, SCL->A5", "code": "#include <Adafruit_SSD1306.h>\nAdafruit_SSD1306 o(128,64,&Wire,-1); void setup(){ o.begin(SSD1306_SWITCHCAPVCC,0x3C); o.clearDisplay(); o.setTextSize(2); o.setCursor(0,0); o.print(\"EMPIRE\"); o.display(); } void loop(){}"},
+        {"title": "Sensor display", "wiring": "OLED + DHT22 on D2", "code": "#include <Adafruit_SSD1306.h>\n#include <DHT.h>\nAdafruit_SSD1306 o(128,64,&Wire,-1); DHT d(2,DHT22); void setup(){ o.begin(SSD1306_SWITCHCAPVCC,0x3C); d.begin(); } void loop(){ o.clearDisplay(); o.setCursor(0,0); o.print(d.readTemperature()); o.println(\"C\"); o.print(d.readHumidity()); o.println(\"%\"); o.display(); delay(2000); }"},
+        {"title": "Countdown timer", "wiring": "OLED I2C", "code": "#include <Adafruit_SSD1306.h>\nAdafruit_SSD1306 o(128,64,&Wire,-1); void setup(){ o.begin(SSD1306_SWITCHCAPVCC,0x3C); } void loop(){ for(int i=10;i>=0;i--){ o.clearDisplay(); o.setTextSize(3); o.setCursor(40,20); o.print(i); o.display(); delay(1000); } }"},
+        {"title": "Menu display", "wiring": "OLED + button D2", "code": "#include <Adafruit_SSD1306.h>\nAdafruit_SSD1306 o(128,64,&Wire,-1); int m=0; void setup(){ o.begin(SSD1306_SWITCHCAPVCC,0x3C); pinMode(2,INPUT_PULLUP); } void loop(){ if(!digitalRead(2)) m=(m+1)%3; o.clearDisplay(); o.setCursor(0,0); o.print(\"Menu \"+String(m)); o.display(); delay(200); }"}
+      ],
+      "esp32_notes": "I2C default pins GPIO21 (SDA) / GPIO22 (SCL); supply 3V3. The Adafruit library works with the ESP32 Arduino core.",
+      "applications": ["Status displays", "Clocks", "Sensor readouts", "Mini dashboards"],
+      "common_mistakes": ["Wrong I2C address (0x3C vs 0x3D)", "Missing pull-ups (usually on module)", "5V logic into 3.3V OLED (modules usually level-shift)"],
+      "safety_notes": "No special hazards at these voltages."
+    },
+    {
+      "id": "lcd",
+      "name": "LCD 16x2",
+      "category": "display",
+      "aliases": ["lcd1602", "hd44780", "lcd display", "16x2 lcd"],
+      "description": "Classic 16x2 character display (HD44780) in parallel (4-bit) or I2C-backed form. Two lines of 16 characters each.",
+      "working": "An HD44780 controller interprets commands/data sent over 4-bit parallel or an I2C backpack (PCF8574, usually 0x27). Characters are written to its RAM and rendered as a 5x8 dot matrix per character.",
+      "pins": [
+        {"name": "VSS/GND", "function": "Ground", "value": "0V"},
+        {"name": "VDD/VCC", "function": "Power", "value": "5V"},
+        {"name": "V0", "function": "Contrast", "value": "Pot to adjust"},
+        {"name": "RS, E, D4-D7", "function": "Control/data", "value": "Digital pins"},
+        {"name": "SDA/SCL (I2C variant)", "function": "I2C", "value": "A4/A5 (Uno)"}
+      ],
+      "voltage": "5V (I2C modules 3.3-5V)",
+      "current": "~1-2mA backlight off, ~100mA+ backlight on",
+      "interfaces": ["digital", "i2c"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Hello World (I2C)", "wiring": "SDA->A4, SCL->A5, VCC->5V", "code": "#include <LiquidCrystal_I2C.h>\nLiquidCrystal_I2C lcd(0x27,16,2); void setup(){ lcd.init(); lcd.backlight(); lcd.setCursor(0,0); lcd.print(\"Hello, Empire!\"); } void loop(){}"},
+        {"title": "Timer display (parallel)", "wiring": "RS D12, E D11, D4-D7 on D5-D2, V0->pot, VCC->5V", "code": "#include <LiquidCrystal.h>\nLiquidCrystal lcd(12,11,5,4,3,2); void setup(){ lcd.begin(16,2); } void loop(){ lcd.setCursor(0,0); lcd.print(millis()/1000); lcd.print(\"s\"); delay(500); }"},
+        {"title": "Scrolling text", "wiring": "I2C LCD", "code": "#include <LiquidCrystal_I2C.h>\nLiquidCrystal_I2C lcd(0x27,16,2); void setup(){ lcd.init(); lcd.backlight(); } void loop(){ for(int i=0;i<16;i++){ lcd.clear(); lcd.setCursor(i,0); lcd.print(\"EMPIRE\"); delay(300); } }"},
+        {"title": "Temperature on LCD", "wiring": "I2C LCD + DHT22 D2", "code": "#include <LiquidCrystal_I2C.h>\n#include <DHT.h>\nLiquidCrystal_I2C lcd(0x27,16,2); DHT d(2,DHT22); void setup(){ lcd.init(); lcd.backlight(); d.begin(); } void loop(){ lcd.setCursor(0,0); lcd.print(\"T:\"); lcd.print(d.readTemperature()); lcd.print(\"C\"); lcd.setCursor(0,1); lcd.print(\"H:\"); lcd.print(d.readHumidity()); lcd.print(\"%\"); delay(2000); }"}
+      ],
+      "esp32_notes": "I2C LCDs work on ESP32 (GPIO21/22). Parallel 5V HD44780 modules need level shifting — prefer I2C version on ESP32.",
+      "applications": ["Status readouts", "Clocks", "Sensor displays", "Menu systems"],
+      "common_mistakes": ["Wrong I2C address (0x27 vs 0x3F)", "Contrast pot at 0 (invisible text)", "Forgetting backlight init", "5V parallel LCD on 3.3V ESP32"],
+      "safety_notes": "No special hazards at these voltages."
+    },
+    {
+      "id": "ultrasonic",
+      "name": "Ultrasonic Sensor (generic)",
+      "category": "sensor",
+      "aliases": ["distance sensor", "ultrasound"],
+      "description": "Generic ultrasonic distance sensing family (HC-SR04, JSN-SR04T, etc.). Emits inaudible sound pulses and measures the return time.",
+      "working": "Speed of sound ~343 m/s at 20C. Distance = time/2 * speed. Timing a pulse with pulseIn() gives the round-trip time.",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "5V (3.3V on some modules)"},
+        {"name": "TRIG", "function": "Trigger", "value": "Digital pulse"},
+        {"name": "ECHO", "function": "Echo", "value": "Digital pulse"},
+        {"name": "GND", "function": "Ground", "value": "0V"}
+      ],
+      "voltage": "3.3-5.5V depending on module",
+      "current": "~2-15mA",
+      "interfaces": ["digital"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "Simple distance", "wiring": "TRIG D9, ECHO D10", "code": "void setup(){ Serial.begin(9600); pinMode(9,OUTPUT); pinMode(10,INPUT);} void loop(){ digitalWrite(9,LOW); delayMicroseconds(2); digitalWrite(9,HIGH); delayMicroseconds(10); digitalWrite(9,LOW); Serial.println(pulseIn(10,HIGH)/58.0); delay(300); }"},
+        {"title": "Water tank level", "wiring": "Sensor above tank, TRIG D9 ECHO D10", "code": "void setup(){ Serial.begin(9600); pinMode(9,OUTPUT); pinMode(10,INPUT);} void loop(){ float d=pulseIn(10,HIGH)/58.0; float level=100.0 - d; Serial.print(\"Level %: \"); Serial.println(level); delay(500); }"},
+        {"title": "Obstacle stop robot", "wiring": "TRIG D9 ECHO D10, motor driver", "code": "float dist(){ digitalWrite(9,LOW); delayMicroseconds(2); digitalWrite(9,HIGH); delayMicroseconds(10); digitalWrite(9,LOW); return pulseIn(10,HIGH)/58.0; } void setup(){ pinMode(9,OUTPUT); pinMode(10,INPUT); pinMode(3,OUTPUT); pinMode(4,OUTPUT);} void loop(){ if(dist()<20){ digitalWrite(3,LOW); digitalWrite(4,LOW); } else { digitalWrite(3,HIGH); digitalWrite(4,LOW); } }"}
+      ],
+      "esp32_notes": "Check module output voltage. HC-SR04 ECHO is 5V — use a divider on ESP32.",
+      "applications": ["Level measurement", "Obstacle avoidance", "Reverse parking", "Automation triggers"],
+      "common_mistakes": ["5V ECHO into 3.3V MCU", "Reading too frequently", "Soft surfaces absorbing pulses"],
+      "safety_notes": "Ultrasound at these power levels is harmless to humans."
+    },
+    {
+      "id": "temperature_sensor",
+      "name": "Temperature Sensor (generic)",
+      "category": "sensor",
+      "aliases": ["thermistor", "lm35", "tmp36", "dallas ds18b20", "temperature"],
+      "description": "Family of temperature sensors: analog (LM35/TMP36), resistance (thermistor), or digital one-wire (DS18B20). Returns temperature in Celsius/Fahrenheit.",
+      "working": "LM35 outputs 10mV/C (0V=0C). TMP36 adds 500mV offset. DS18B20 uses 1-wire protocol for precise readings. Thermistors change resistance nonlinearly — read via divider.",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "3.3-5V"},
+        {"name": "OUT / DATA", "function": "Signal", "value": "Analog or 1-wire"},
+        {"name": "GND", "function": "Ground", "value": "0V"}
+      ],
+      "voltage": "3.3-5V",
+      "current": "~0.05-1mA",
+      "interfaces": ["analog", "digital", "one-wire"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "LM35 read", "wiring": "VCC->5V, OUT->A0, GND", "code": "void setup(){ Serial.begin(9600);} void loop(){ float mv=analogRead(A0)*5000.0/1023.0; Serial.println(mv/10.0); delay(500); }"},
+        {"title": "DS18B20 read", "wiring": "DATA D2 + 4.7k pull-up to 5V", "code": "#include <OneWire.h>\n#include <DallasTemperature.h>\nOneWire ow(2); DallasTemperature s(&ow); void setup(){ s.begin(); Serial.begin(9600);} void loop(){ s.requestTemperatures(); Serial.println(s.getTempCByIndex(0)); delay(1000); }"},
+        {"title": "Thermistor read", "wiring": "Thermistor A0->5V, 10k A0->GND", "code": "void setup(){ Serial.begin(9600);} void loop(){ int a=analogRead(A0); float r=10.0*(1023.0/a - 1); float t=1.0/(1.0/298.15 + log(r/10.0)/3950.0) - 273.15; Serial.println(t); delay(500); }"},
+        {"title": "Overheat alarm", "wiring": "LM35 A0, buzzer D8", "code": "void setup(){ pinMode(8,OUTPUT); Serial.begin(9600);} void loop(){ float t=analogRead(A0)*5000.0/1023.0/10.0; if(t>35){ tone(8,2000,200);} delay(500); }"}
+      ],
+      "esp32_notes": "All three families work on 3.3V; scale analog calculations for the ESP32 ADC (12-bit, 0-3.3V reference).",
+      "applications": ["Overheat protection", "Climate logging", "Process monitoring", "Weather"],
+      "common_mistakes": ["Wrong ADC scale (10-bit vs 12-bit)", "Self-heating by leaving the sensor hot", "Missing pull-up for DS18B20"],
+      "safety_notes": "Keep temperature sensors within their rated range to avoid inaccurate or damaged readings."
+    },
+    {
+      "id": "humidity_sensor",
+      "name": "Humidity Sensor (generic)",
+      "category": "sensor",
+      "aliases": ["moisture", "humidity", "rh sensor"],
+      "description": "Measures relative humidity (0-100% RH). Digital one-wire (DHT family) or capacitive modules (soil moisture / hygrometer).",
+      "working": "Capacitive elements change with absorbed water; the sensor converts capacitance into a signal. DHT variants digitize RH and temperature. Soil moisture modules measure conductivity between two probes.",
+      "pins": [
+        {"name": "VCC", "function": "Power", "value": "3.3-5V"},
+        {"name": "DATA / AOUT", "function": "Signal", "value": "Digital or analog"},
+        {"name": "GND", "function": "Ground", "value": "0V"}
+      ],
+      "voltage": "3.3-5V",
+      "current": "~1-5mA",
+      "interfaces": ["analog", "digital", "one-wire"],
+      "compatibility": ["Arduino Uno", "Arduino Nano", "Arduino Mega", "ESP32"],
+      "arduino_examples": [
+        {"title": "DHT22 RH read", "wiring": "DATA D2 + 10k pull-up", "code": "#include <DHT.h>\nDHT d(2,DHT22); void setup(){ d.begin(); Serial.begin(9600);} void loop(){ Serial.println(d.readHumidity()); delay(2000); }"},
+        {"title": "Soil moisture", "wiring": "AOUT->A0, VCC->5V", "code": "void setup(){ Serial.begin(9600);} void loop(){ Serial.println(analogRead(A0)); delay(500); }"},
+        {"title": "Auto-water plant", "wiring": "Soil moisture A0, pump relay D7", "code": "void setup(){ pinMode(7,OUTPUT);} void loop(){ if(analogRead(A0)>800) digitalWrite(7,HIGH); else if(analogRead(A0)<400) digitalWrite(7,LOW); delay(1000); }"},
+        {"title": "Dehumidifier control", "wiring": "DHT22 D2, relay D7", "code": "#include <DHT.h>\nDHT d(2,DHT22); void setup(){ d.begin(); pinMode(7,OUTPUT);} void loop(){ digitalWrite(7, d.readHumidity()>60 ? HIGH : LOW); delay(2000); }"}
+      ],
+      "esp32_notes": "Same wiring patterns; keep probes dry for capacitive sensors (corrosion) — prefer capacitive over resistive for long-term use.",
+      "applications": ["Greenhouses", "Soil moisture", "Climate control", "Weather stations"],
+      "common_mistakes": ["Leaving resistive probes powered (electrolysis)", "Reading DHT too fast", "Wrong channel (AOUT vs DOUT)"],
+      "safety_notes": "Keep moisture away from the MCU wiring; dry the probes between uses."
+    }
+  ]
+}
