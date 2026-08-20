@@ -4,9 +4,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import cv2
+
 from app.services.ai_assistant import generate_code, knowledge_answer
 from app.services.circuit_validator import validate_circuit
 from app.services.component_db import ComponentDB
+from app.services.scanner_service import component_answer, recognize_frame, scan_frame
 from app.services.sensor_service import parse_sensor_payload
 
 DATA = Path(__file__).resolve().parent.parent / "app" / "data" / "components.json"
@@ -131,3 +134,50 @@ def test_generate_code_distance_led():
 def test_generate_code_unknown():
     r = generate_code("do the thing")
     assert r["ok"] is False
+
+
+# --------------------------------------------------------------------------
+# Scanner / recognition
+# --------------------------------------------------------------------------
+def test_component_answer_has_name_pins_why():
+    db = ComponentDB(DATA)
+    comp = db.get("led")
+    ans = component_answer(comp, why="We use it to show status.")
+    assert ans["name"] == "LED"
+    assert ans["answer"].startswith("LED")
+    assert len(ans["pins"]) >= 2
+    assert ans["pins"][0]["name"] == "Anode (+)"
+
+
+def test_component_answer_no_info_is_none():
+    assert component_answer(None) is None
+
+
+def test_scan_frame_returns_honest_candidates():
+    import numpy as np
+
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    # draw a bright red LED-like disc in the middle
+    cv2.circle(frame, (320, 240), 12, (0, 0, 255), -1)
+    result = scan_frame(frame)
+    assert result["experimental"] is True
+    ids = [c["id"] for c in result["candidates"]]
+    assert "led" in ids
+
+
+def test_recognize_frame_falls_back_to_heuristics():
+    import numpy as np
+
+    from app.config import settings
+
+    if settings.ai_enabled:
+        return  # AI path needs a live key; heuristic path covered below
+    frame = np.zeros((480, 640, 3), dtype=np.uint8)
+    cv2.circle(frame, (320, 240), 12, (0, 0, 255), -1)
+    result = recognize_frame(frame)
+    assert result["source"] == "heuristic"
+    assert result["candidates"]
+    cand = result["candidates"][0]
+    assert cand["info"] is not None
+    assert cand["answer"] is not None
+    assert "pins" in cand["answer"]

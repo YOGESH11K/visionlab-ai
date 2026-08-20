@@ -12,14 +12,31 @@ interface Candidate {
   possible: boolean;
   hint?: string;
   info?: ComponentInfo | null;
+  answer?: ComponentAnswer | null;
+}
+
+interface ComponentAnswer {
+  id: string;
+  name: string;
+  category: string;
+  answer: string;
+  why: string;
+  pins: { name: string; function: string; value: string }[];
+  voltage: string;
+  current: string;
+  how_it_works: string;
+  interfaces: string[];
+  applications: string[];
 }
 
 interface RecognizeResult {
   experimental: boolean;
+  source?: "ai" | "heuristic" | "none";
   candidates: Candidate[];
   note?: string;
   guidance?: string[];
   top_match?: ComponentInfo | null;
+  answer?: ComponentAnswer | null;
 }
 
 export function ComponentScanner() {
@@ -30,6 +47,8 @@ export function ComponentScanner() {
   const [scanning, setScanning] = useState(false);
   const [autoScan, setAutoScan] = useState(true);
   const [selected, setSelected] = useState<ComponentInfo | null>(null);
+  const [answer, setAnswer] = useState<ComponentAnswer | null>(null);
+  const [source, setSource] = useState<"ai" | "heuristic" | "none">("none");
   const [identifyName, setIdentifyName] = useState("");
   const [lastScan, setLastScan] = useState<string>("");
   const [camError, setCamError] = useState<string>("");
@@ -97,6 +116,8 @@ export function ComponentScanner() {
       setCandidates(r.candidates ?? []);
       setGuidance(r.guidance ?? []);
       setLastScan(new Date().toLocaleTimeString());
+      setSource(r.source ?? "none");
+      setAnswer(r.answer ?? null);
       if (r.top_match && !selected) {
         setSelected(r.top_match);
       }
@@ -130,12 +151,18 @@ export function ComponentScanner() {
   };
 
   const openCandidate = (c: Candidate) => {
+    if (c.answer) setAnswer(c.answer);
     if (c.info) {
       setSelected(c.info);
     } else if (c.id && c.id !== "breadboard") {
       api.get<ComponentInfo>(`/api/components/${c.id}`).then(setSelected).catch(() => {});
     }
   };
+
+  const openAnswerDetails = useCallback(() => {
+    if (!answer) return;
+    api.get<ComponentInfo>(`/api/components/${answer.id}`).then(setSelected).catch(() => {});
+  }, [answer]);
 
   return (
     <div className="grid h-full gap-3 lg:grid-cols-2">
@@ -146,9 +173,9 @@ export function ComponentScanner() {
               <IconAlert size={14} className="mt-0.5 shrink-0 text-[var(--color-warn)]" />
               <p className="text-[11.5px] leading-snug text-[var(--color-ink-dim)]">
                 Point your device camera at any electronic or robotics component. VisionLab identifies it
-                and opens its complete knowledge panel — <span className="mono text-[var(--color-ink)]">use, pins, voltage,
-                Arduino wiring, ESP32 notes</span> and safety. Results are honest <span className="mono text-[var(--color-warn)]">possible matches</span>,
-                never false certainties.
+                and answers with its <span className="mono text-[var(--color-ink)]">name, pins and why it is used</span>.
+                With an AI vision key configured the answer is decisive; without one it falls back to honest{" "}
+                <span className="mono text-[var(--color-warn)]">possible matches</span>, never false certainties.
               </p>
             </div>
 
@@ -278,6 +305,9 @@ export function ComponentScanner() {
       </div>
 
       <div className="flex min-h-0 flex-col gap-3">
+        {answer && (
+          <AnswerPanel answer={answer} source={source} onOpen={openAnswerDetails} />
+        )}
         {selected ? (
           <ComponentInfoPanel comp={selected} onClose={() => setSelected(null)} />
         ) : (
@@ -290,6 +320,108 @@ export function ComponentScanner() {
         )}
       </div>
     </div>
+  );
+}
+
+export function AnswerPanel({
+  answer,
+  source,
+  onOpen,
+}: {
+  answer: ComponentAnswer;
+  source: "ai" | "heuristic" | "none";
+  onOpen?: () => void;
+}) {
+  const ai = source === "ai";
+  return (
+    <Panel
+      title="Detected Component"
+      right={
+        <span
+          className="mono rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider"
+          style={{
+            color: ai ? "var(--color-good)" : "var(--color-warn)",
+            border: `1px solid ${ai ? "var(--color-good)" : "var(--color-warn)"}55`,
+            background: `${ai ? "var(--color-good)" : "var(--color-warn)"}11`,
+          }}
+        >
+          {ai ? "AI vision" : "heuristic"}
+        </span>
+      }
+      bodyClassName="overflow-y-auto"
+      className="min-h-0"
+    >
+      <div className="space-y-3 p-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-[15px] font-semibold text-[var(--color-ink)]">{answer.name}</h3>
+            <Tag color={ai ? "var(--color-good)" : "var(--color-warn)"}>
+              {answer.category}
+            </Tag>
+          </div>
+          {ai ? (
+            <p className="mt-1 text-[11.5px] text-[var(--color-good)]">
+              Identified by AI vision — answer below is from the verified knowledge base.
+            </p>
+          ) : (
+            <p className="mt-1 text-[11.5px] text-[var(--color-warn)]">
+              Possible match from visual heuristics — answer from the verified knowledge base.
+            </p>
+          )}
+        </div>
+
+        <section className="rounded border border-[var(--color-good)]/30 bg-[var(--color-good)]/5 p-2.5">
+          <div className="panel-title mb-1">Answer</div>
+          <p className="text-[13px] leading-relaxed text-[var(--color-ink)]">{answer.answer}</p>
+        </section>
+
+        <section>
+          <div className="panel-title mb-1">Why we use it</div>
+          <p className="text-[12.5px] leading-relaxed text-[var(--color-ink-dim)]">{answer.why}</p>
+        </section>
+
+        <section>
+          <div className="panel-title mb-1">Pins</div>
+          <div className="space-y-1">
+            {answer.pins.length > 0 ? (
+              answer.pins.map((p, i) => (
+                <div key={i} className="flex items-center justify-between rounded border border-[var(--color-line)] px-2.5 py-1.5 text-[12px]">
+                  <span className="mono font-semibold text-[var(--color-ink)]">{p.name}</span>
+                  <span className="text-[var(--color-ink-dim)]">{p.function}</span>
+                  <span className="mono text-[10.5px] text-[var(--color-ink-faint)]">{p.value}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-[11.5px] text-[var(--color-ink-faint)]">No pin data available.</p>
+            )}
+          </div>
+        </section>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded border border-[var(--color-line)] p-2.5">
+            <div className="panel-title">Voltage</div>
+            <div className="mt-1 text-[12px] text-[var(--color-ink)]">{answer.voltage || "n/a"}</div>
+          </div>
+          <div className="rounded border border-[var(--color-line)] p-2.5">
+            <div className="panel-title">Current</div>
+            <div className="mt-1 text-[12px] text-[var(--color-ink)]">{answer.current || "n/a"}</div>
+          </div>
+        </div>
+
+        {answer.how_it_works && (
+          <section>
+            <div className="panel-title mb-1">How it works</div>
+            <p className="text-[12px] leading-relaxed text-[var(--color-ink-dim)]">{answer.how_it_works}</p>
+          </section>
+        )}
+
+        {onOpen && (
+          <button className="btn btn-primary w-full" onClick={onOpen}>
+            Full details &amp; wiring
+          </button>
+        )}
+      </div>
+    </Panel>
   );
 }
 

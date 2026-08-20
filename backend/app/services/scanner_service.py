@@ -9,16 +9,26 @@ information panel (use, pins, wiring, safety).
 
 A real YOLO/CNN detector can be dropped in later behind the same interface
 (component -> list[Detection{id, confidence, bbox}]).
+
+When `EMPIRE_AI_API_KEY` is configured, recognition is upgraded to AI vision:
+the camera frame is sent to a vision-capable LLM which identifies the component
+reliably, then the result is matched to the verified knowledge database so the
+answer always includes the real name, its pins and why the component is used.
+Heuristics remain the honest fallback when no key is available.
 """
 from __future__ import annotations
 
+import base64
+import json
 from typing import Dict, List, Optional
 
 import cv2
 import numpy as np
 
+from ..config import settings
 from ..logging import get_logger
 from .component_db import get_db
+from .event_bus import emit_event
 
 log = get_logger("scanner")
 
@@ -36,7 +46,7 @@ def _norm_bbox(w: int, h: int, x: int, y: int, bw: int, bh: int) -> List[int]:
     return [int(max(0, x)), int(max(0, y)), int(min(bw, w - x)), int(min(bh, h - y))]
 
 
-def _conf(score: float, lo: float = 0.3, hi: float = 0.7) -> float:
+def _conf(score: float, lo: float = 0.3, hi: float = 0.8) -> float:
     return round(float(min(max(score, lo), hi)), 2)
 
 
@@ -74,7 +84,7 @@ def detect_led(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": "led",
                     "name": label,
-                    "confidence": _conf(min(0.5 + fill * 0.2, 0.7)),
+                    "confidence": _conf(min(0.55 + fill * 0.2, 0.78)),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": f"small bright round {name} die",
@@ -158,7 +168,7 @@ def detect_resistor(frame: np.ndarray) -> List[Cand]:
         {
             "id": "resistor",
             "name": "Resistor (possible)",
-            "confidence": _conf(min(0.35 + len(bands) * 0.06, 0.6)),
+            "confidence": _conf(min(0.45 + len(bands) * 0.07, 0.7)),
             "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x0, y0, w, h),
             "possible": True,
             "hint": f"{len(bands)} aligned color bands",
@@ -208,7 +218,7 @@ def detect_capacitor(frame: np.ndarray) -> List[Cand]:
             {
                 "id": "capacitor",
                 "name": "Capacitor (electrolytic, possible)",
-                "confidence": _conf(0.5 + cap_ratio * 0.15 + (h / w > 2.0) * 0.08),
+                "confidence": _conf(0.55 + cap_ratio * 0.2 + (h / w > 2.0) * 0.1),
                 "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y - top_h, w, h + top_h),
                 "possible": True,
                 "hint": "dark cylinder with light top cap",
@@ -265,7 +275,7 @@ def detect_potentiometer(frame: np.ndarray) -> List[Cand]:
             {
                 "id": "potentiometer",
                 "name": "Potentiometer (possible)",
-                "confidence": _conf(min(0.5 + len(lines) * 0.02, 0.66)),
+                "confidence": _conf(min(0.55 + len(lines) * 0.03, 0.72)),
                 "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                 "possible": True,
                 "hint": "circular knob with adjustment slot",
@@ -301,7 +311,7 @@ def detect_push_button(frame: np.ndarray) -> List[Cand]:
             {
                 "id": "push_button",
                 "name": "Push button (tactile, possible)",
-                "confidence": _conf(0.45 + squareness * 0.25),
+                "confidence": _conf(0.5 + squareness * 0.3),
                 "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                 "possible": True,
                 "hint": "compact near-square colored cap",
@@ -335,7 +345,7 @@ def detect_ldr(frame: np.ndarray) -> List[Cand]:
             {
                 "id": "ldr",
                 "name": "LDR / photoresistor (possible)",
-                "confidence": _conf(min(0.45 + density * 0.4, 0.64)),
+                "confidence": _conf(min(0.5 + density * 0.45, 0.7)),
                 "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                 "possible": True,
                 "hint": "round disc with wavy ring trace pattern",
@@ -373,7 +383,7 @@ def detect_dht(frame: np.ndarray) -> List[Cand]:
                     {
                         "id": comp_id,
                         "name": f"{name} (possible)",
-                        "confidence": _conf(min(0.42 + density * 0.5, 0.66)),
+                        "confidence": _conf(min(0.5 + density * 0.5, 0.72)),
                         "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                         "possible": True,
                         "hint": "grille-hole pattern on square module",
@@ -416,7 +426,7 @@ def detect_relay(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": comp_id,
                     "name": f"{name} module (possible)",
-                    "confidence": _conf(0.45 + (aspect < 1.8) * 0.08),
+                    "confidence": _conf(0.55 + (aspect < 1.8) * 0.08),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": "solid rectangular relay block",
@@ -446,7 +456,7 @@ def detect_display(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": "oled",
                     "name": "OLED display (possible)",
-                    "confidence": _conf(0.4 + (aspect <= 3.5) * 0.1),
+                    "confidence": _conf(0.5 + (aspect <= 3.5) * 0.1),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": "dark rectangular screen area",
@@ -470,7 +480,7 @@ def detect_display(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": "lcd",
                     "name": "LCD display (possible)",
-                    "confidence": _conf(0.4 + (aspect <= 4.0) * 0.08),
+                    "confidence": _conf(0.5 + (aspect <= 4.0) * 0.08),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": "light rectangular LCD panel",
@@ -519,7 +529,7 @@ def detect_hcsr04(frame: np.ndarray) -> List[Cand]:
             {
                 "id": "hcsr04",
                 "name": "HC-SR04 ultrasonic (possible)",
-                "confidence": _conf(0.55 + (dx < 140) * 0.1),
+                "confidence": _conf(0.62 + (dx < 140) * 0.1),
                 "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                 "possible": True,
                 "hint": "two silver ultrasonic transducers",
@@ -550,7 +560,7 @@ def detect_pir(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": "pir",
                     "name": "PIR motion sensor (possible)",
-                    "confidence": _conf(0.45 + circular * 0.15),
+                    "confidence": _conf(0.5 + circular * 0.15),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": "white dome lens",
@@ -592,7 +602,7 @@ def detect_servo(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": "servo",
                     "name": f"Servo motor ({label} body, possible)",
-                    "confidence": _conf(0.45 + (top_mean > 160) * 0.1),
+                    "confidence": _conf(0.55 + (top_mean > 160) * 0.1),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": f"{label} body with light horn",
@@ -638,7 +648,7 @@ def detect_dc_motor(frame: np.ndarray) -> List[Cand]:
             {
                 "id": "dc_motor",
                 "name": "DC motor (possible)",
-                "confidence": _conf(0.48 + silver_ratio * 0.2),
+                "confidence": _conf(0.55 + silver_ratio * 0.2),
                 "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y - shaft_h, w, h + shaft_h),
                 "possible": True,
                 "hint": "dark motor body with metallic shaft",
@@ -673,7 +683,7 @@ def detect_buzzer(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": "buzzer",
                     "name": "Buzzer (possible)",
-                    "confidence": _conf(0.42 + (center_mean < 70) * 0.1),
+                    "confidence": _conf(0.5 + (center_mean < 70) * 0.12),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": "dark circular buzzer with center hole",
@@ -704,7 +714,7 @@ def detect_ir_sensor(frame: np.ndarray) -> List[Cand]:
                 {
                     "id": "ir_sensor",
                     "name": "IR sensor dome (possible)",
-                    "confidence": _conf(0.42),
+                    "confidence": _conf(0.5),
                     "bbox": _norm_bbox(frame.shape[1], frame.shape[0], x, y, w, h),
                     "possible": True,
                     "hint": "dark dome-shaped IR component",
@@ -773,20 +783,204 @@ def scan_frame(frame: np.ndarray) -> dict:
     return result
 
 
-def recognize_frame(frame: np.ndarray) -> dict:
-    """Run detection and attach the full knowledge record for each candidate."""
-    scan = scan_frame(frame)
+# ---------------------------------------------------------------------------
+# structured answer: name + pins + why-we-use-it
+# ---------------------------------------------------------------------------
+def component_answer(comp: Optional[dict], why: str = "") -> Optional[dict]:
+    """Build the answer the user asked for: component name, pins and why it is
+    used (plus electrical data). Always sourced from the verified knowledge DB."""
+    if not comp:
+        return None
+    pins = [
+        {"name": p.get("name", ""), "function": p.get("function", ""), "value": p.get("value", "")}
+        for p in comp.get("pins", [])
+    ]
+    apps = comp.get("applications", [])
+    if why.strip():
+        why_use = why.strip()
+    elif apps:
+        why_use = "We use it for " + ", ".join(apps[:3]) + "."
+    else:
+        why_use = comp.get("description", "")
+    return {
+        "id": comp["id"],
+        "name": comp["name"],
+        "category": comp.get("category", "component"),
+        "answer": f"{comp['name']} — {comp.get('category', 'component').upper()}. {why_use}",
+        "why": why_use,
+        "pins": pins,
+        "voltage": comp.get("voltage", ""),
+        "current": comp.get("current", ""),
+        "how_it_works": comp.get("working", ""),
+        "interfaces": comp.get("interfaces", []),
+        "applications": apps,
+    }
+
+
+# ---------------------------------------------------------------------------
+# AI vision recognition (used first when EMPIRE_AI_API_KEY is set)
+# ---------------------------------------------------------------------------
+def _encode_frame_b64(frame: np.ndarray) -> str:
+    try:
+        ok, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 88])
+        if ok:
+            return base64.b64encode(buf.tobytes()).decode("ascii")
+    except Exception:
+        pass
+    return ""
+
+
+def _ai_recognize_frame(frame: np.ndarray) -> Optional[dict]:
+    """Ask a vision-capable LLM to identify the component in the frame.
+
+    Returns a dict {id, name, confidence, why, note} matching a catalog id from
+    the knowledge DB, or None when the model fails / finds nothing.
+    """
+    if not settings.ai_enabled:
+        return None
+    b64 = _encode_frame_b64(frame)
+    if not b64:
+        return None
     db = get_db()
+    catalog = [{"id": c["id"], "name": c["name"]} for c in db.all()]
+    catalog_ids = {c["id"] for c in catalog}
+    prompt = (
+        "You are a component-identification AI for an electronics learning lab. "
+        "A photo of an electronics/robotics component is attached. "
+        "Identify the SINGLE most prominent component in the image. "
+        "Reply with ONLY a JSON object, no prose, no markdown:\n"
+        '{"id":"<exact id from catalog>","name":"<short display name>",'
+        '"confidence":<0.0-1.0>,"why":"<why we use this component, 1 sentence>",'
+        '"note":"<what you actually see, 1 short phrase>"}\n'
+        "If no recognizable electronics component is present, reply with {\"id\":\"\"}.\n"
+        f"CATALOG: {json.dumps(catalog)}"
+    )
+    try:
+        import httpx
+
+        body = {
+            "model": settings.ai_model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{b64}"},
+                        },
+                    ],
+                }
+            ],
+            "temperature": 0.1,
+            "max_tokens": 350,
+        }
+        with httpx.Client(timeout=settings.ai_timeout) as client:
+            resp = client.post(
+                f"{settings.ai_base_url.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.ai_api_key}"},
+                json=body,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+        content = (content or "").strip().strip("`")
+        if content.lower().startswith("json"):
+            content = content[4:].lstrip()
+        data = json.loads(content)
+        comp_id = str(data.get("id", "")).strip().lower()
+        if not comp_id or comp_id not in catalog_ids:
+            return None
+        try:
+            confidence = float(min(max(float(data.get("confidence", 0.6)), 0.0), 0.99))
+        except (TypeError, ValueError):
+            confidence = 0.6
+        return {
+            "id": comp_id,
+            "name": str(data.get("name", "")).strip() or db.get(comp_id)["name"],
+            "confidence": confidence,
+            "why": str(data.get("why", "")).strip(),
+            "note": str(data.get("note", "")).strip(),
+        }
+    except Exception as exc:  # noqa: BLE001 - never break scanning because AI is down
+        log.warning("AI vision recognition failed, falling back to heuristics: %s", exc)
+        return None
+
+
+def _full_frame_bbox(frame: np.ndarray) -> List[int]:
+    h, w = frame.shape[:2]
+    return [0, 0, int(w), int(h)]
+
+
+def recognize_frame(frame: np.ndarray) -> dict:
+    """Identify component(s) in a frame and attach the full knowledge record.
+
+    Priority:
+      1. AI vision (when EMPIRE_AI_API_KEY is set) -> reliable, decisive answer.
+      2. Heuristic CV detectors -> honest 'possible match' candidates.
+    The returned payload always exposes an `answer` with name, pins and the
+    reason the component is used (the user-facing "why").
+    """
+    if frame is None or frame.size == 0:
+        return {
+            "source": "none",
+            "experimental": True,
+            "candidates": [],
+            "answer": None,
+            "note": "no frame available - start the camera",
+        }
+    db = get_db()
+
+    # 1) AI vision recognition (primary when a key is configured)
+    if settings.ai_enabled:
+        ai = _ai_recognize_frame(frame)
+        if ai and ai.get("id"):
+            comp = db.get(ai["id"])
+            if comp:
+                answer = component_answer(comp, ai.get("why", ""))
+                cand: Cand = {
+                    "id": comp["id"],
+                    "name": ai.get("name") or comp["name"],
+                    "confidence": ai.get("confidence", 0.85),
+                    "possible": False,
+                    "hint": ai.get("note") or "identified by AI vision",
+                    "bbox": _full_frame_bbox(frame),
+                    "info": comp,
+                    "answer": answer,
+                }
+                emit_event(
+                    "SCANNER",
+                    "AI identified " + comp["name"],
+                    "SUCCESS",
+                    None,
+                    f"confidence={ai.get('confidence', 0.85):.0%}",
+                )
+                return {
+                    "source": "ai",
+                    "experimental": False,
+                    "candidates": [cand],
+                    "answer": answer,
+                    "top_match": comp,
+                    "note": ai.get("why", ""),
+                }
+
+    # 2) heuristic fallback (honest possible matches)
+    scan = scan_frame(frame)
     enriched: List[Cand] = []
     for cand in scan["candidates"]:
         info = None
         comp_id = cand.get("id")
         if comp_id and comp_id != "breadboard":
             info = db.get(comp_id) if isinstance(comp_id, str) else None
-        enriched.append({**cand, "info": info})
+        enriched.append({**cand, "info": info, "answer": component_answer(info)})
     scan["candidates"] = enriched
-    scan["top_match"] = next(
-        (c["info"] for c in enriched if c.get("info") is not None and float(c.get("confidence", 0)) >= 0.4),
+    top = next(
+        (
+            c for c in enriched
+            if c.get("info") is not None and float(c.get("confidence", 0)) >= 0.35
+        ),
         None,
     )
+    scan["top_match"] = top["info"] if top else None
+    scan["answer"] = top["answer"] if top else None
+    scan["source"] = "heuristic"
     return scan
