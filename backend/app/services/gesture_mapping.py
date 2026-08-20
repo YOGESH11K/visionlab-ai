@@ -43,7 +43,19 @@ ACTION_TO_COMMAND = {
     "relay": lambda m: f"RELAY:{'ON' if m.get('value') else 'OFF'}",
     "motor": lambda m: f"MOTOR:{m.get('value', 0)}",
     "custom": lambda m: m["target"],
+    # robot control actions (handled by the robotics controller)
+    "robot_forward": lambda m: f"ROBOT:FORWARD:{m.get('value', 120) or 120}",
+    "robot_backward": lambda m: f"ROBOT:BACKWARD:{m.get('value', 120) or 120}",
+    "robot_left": lambda m: f"ROBOT:LEFT:{m.get('value', 120) or 120}",
+    "robot_right": lambda m: f"ROBOT:RIGHT:{m.get('value', 120) or 120}",
+    "robot_stop": lambda m: "ROBOT:STOP",
+    "robot_emergency": lambda m: "ROBOT:EMERGENCY",
+    "robot_servo": lambda m: f"ROBOT:SERVO:{m.get('value', 90) or 90}",
+    "robot_led": lambda m: "ROBOT:LED:ON" if m.get("value") else "ROBOT:LED:OFF",
 }
+
+# Commands that belong to the robotics controller, not the raw serial device.
+ROBOT_COMMANDS = ("ROBOT:",)
 
 
 def _target_to_led(target: str, on: bool) -> str:
@@ -53,7 +65,10 @@ def _target_to_led(target: str, on: bool) -> str:
 
 
 def apply_command(cmd: str) -> dict:
-    """Send a raw command through the hardware manager."""
+    """Send a raw command through the hardware manager or robotics controller."""
+    if cmd.upper().startswith(ROBOT_COMMANDS):
+        from .robotics_service import get_robotics
+        return get_robotics().handle_robot_command(cmd)
     hw = get_hardware()
     resp = hw.send_command(cmd)
     return resp.to_dict()

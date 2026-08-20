@@ -226,6 +226,11 @@ export function ComponentScanner() {
                     <span className="flex items-center gap-2 text-[12.5px] text-[var(--color-ink)]">
                       {c.info && <IconRefresh size={12} className="text-[var(--color-accent)]" />}
                       {c.name}
+                      {c.confidence < 0.5 && (
+                        <span className="mono rounded border border-[var(--color-warn)]/50 bg-[var(--color-warn)]/10 px-1 py-0.5 text-[8.5px] uppercase tracking-wide text-[var(--color-warn)]">
+                          low confidence
+                        </span>
+                      )}
                     </span>
                     <span className="mono text-[11px]" style={{ color: c.confidence >= 0.6 ? "var(--color-warn)" : "var(--color-ink-faint)" }}>
                       {Math.round(c.confidence * 100)}%

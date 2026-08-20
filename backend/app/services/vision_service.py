@@ -328,6 +328,19 @@ class VisionService:
             return
         try:
             cmd = mapping_to_command(mapping)
+            if cmd.upper().startswith("ROBOT:"):
+                # Robot commands pass through the safety validator inside the robotics controller.
+                from .robotics_service import get_robotics
+                rc = get_robotics()
+                resp = rc.handle_robot_command(cmd)
+                emit_event(
+                    "VISION",
+                    res.gesture,
+                    "SUCCESS" if resp.get("ok") else "ERROR",
+                    cmd,
+                    f"confidence={res.confidence:.0%} motors={resp.get('motors', {})}",
+                )
+                return
             hw = get_hardware()
             resp = hw.send_command(cmd)
             emit_event(

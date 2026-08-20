@@ -38,7 +38,7 @@ const statusTone = (s: string) =>
   s === "CONNECTED" || s === "ONLINE" ? "good" : s === "SIMULATION" || s === "AVAILABLE" || s === "VIRTUAL" ? "warn" : "bad";
 
 export function SettingsPage() {
-  const { notify } = useStore();
+  const { notify, robotics } = useStore();
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [diag, setDiag] = useState<Diagnostics | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
@@ -80,6 +80,7 @@ export function SettingsPage() {
             <span>Hardware: <span className="mono text-[var(--color-ink-dim)]">{status.hardware_mode} / {status.hardware_board}</span></span>
             <span>Vision: <span className="mono text-[var(--color-ink-dim)]">{status.vision_mode} @ {status.vision_fps}fps</span></span>
             <span>Gesture: <span className="mono text-[var(--color-accent)]">{status.gesture}</span></span>
+            <span>Robotics: <span className="mono text-[var(--color-accent)]">{robotics?.device_name ?? "—"} · {robotics?.mode ?? "—"}{robotics?.emergency ? " · EMERGENCY" : ""}</span></span>
           </div>
         )}
       </Panel>

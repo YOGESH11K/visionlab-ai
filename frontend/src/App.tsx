@@ -3,55 +3,58 @@ import { AppProvider, useStore } from "./lib/store";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 import { Dashboard } from "./pages/Dashboard";
-import { VisionLab } from "./pages/VisionLab";
 import { GestureControl } from "./pages/GestureControl";
+import { RoboticsControl } from "./pages/RoboticsControl";
 import { ComponentScanner } from "./pages/ComponentScanner";
-import { SensorMonitor } from "./pages/SensorMonitor";
-import { HardwareLab } from "./pages/HardwareLab";
 import { AIAssistant } from "./pages/AIAssistant";
 import { CodeGenerator } from "./pages/CodeGenerator";
-import { CircuitBuilder } from "./pages/CircuitBuilder";
-import { Projects } from "./pages/Projects";
 import { LearningLab } from "./pages/LearningLab";
+import { Projects } from "./pages/Projects";
 import { SettingsPage } from "./pages/Settings";
 
+const TITLES: Record<string, string> = {
+  dashboard: "Command Center",
+  gestures: "Gesture Control",
+  robotics: "Robotics Control",
+  scanner: "Component Scanner",
+  ai: "AI Assistant",
+  codegen: "Code Generator",
+  learning: "Learning Lab",
+  projects: "Projects",
+  settings: "Settings",
+};
+
 function Shell() {
-  const { page } = useStore();
-  const TITLES: Record<string, string> = {
-    dashboard: "Command Center",
-    vision: "Vision Lab",
-    gestures: "Gesture Control",
-    scanner: "Component Scanner",
-    sensors: "Sensor Monitor",
-    hardware: "Arduino / ESP32",
-    circuits: "Circuit Builder",
-    ai: "AI Assistant",
-    codegen: "Code Generator",
-    projects: "Projects",
-    learning: "Learning Lab",
-    settings: "Settings",
-  };
+  const { page, robotics } = useStore();
 
   return (
     <div className="grid-bg flex h-screen overflow-hidden">
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar current={TITLES[page]} />
-        <main className="min-h-0 flex-1 overflow-y-auto p-4">
+        <main className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4">
           {page === "dashboard" && <Dashboard />}
-          {page === "vision" && <VisionLab />}
           {page === "gestures" && <GestureControl />}
+          {page === "robotics" && <RoboticsControl />}
           {page === "scanner" && <ComponentScanner />}
-          {page === "sensors" && <SensorMonitor />}
-          {page === "hardware" && <HardwareLab />}
-          {page === "circuits" && <CircuitBuilder />}
           {page === "ai" && <AIAssistant />}
           {page === "codegen" && <CodeGenerator />}
-          {page === "projects" && <Projects />}
           {page === "learning" && <LearningLab />}
+          {page === "projects" && <Projects />}
           {page === "settings" && <SettingsPage />}
         </main>
       </div>
+
+      {robotics?.emergency && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-3">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--color-bad)]/60 bg-[var(--color-base-900)]/90 px-4 py-2 shadow-[0_0_30px_rgba(248,113,113,0.35)] backdrop-blur">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--color-bad)]" />
+            <span className="mono text-[11px] font-bold uppercase tracking-widest text-[var(--color-bad)]">
+              Emergency stop engaged
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

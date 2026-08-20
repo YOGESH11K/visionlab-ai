@@ -33,6 +33,45 @@ export const api = {
   },
 };
 
+export const robotics = {
+  state: () => api.get<RoboticsState>("/api/robotics/state"),
+  devices: () => api.get<{ devices: RobotDeviceInfo[] }>("/api/robotics/devices"),
+  actions: () =>
+    api.get<{ control: string[]; gesture: string[]; sequence_steps: string[] }>("/api/robotics/actions"),
+  connect: (device_type: string, endpoint?: string) =>
+    api.post<{ ok: boolean; error?: string }>("/api/robotics/connect", { device_type, endpoint }),
+  disconnect: () => api.post<{ ok: boolean }>("/api/robotics/disconnect"),
+  control: (action: string, speed?: number, source?: string) =>
+    api.post<{ ok: boolean; error?: string; blocked?: boolean; motors?: Record<string, number> }>(
+      "/api/robotics/control",
+      { action, speed, source },
+    ),
+  motor: (side: "left" | "right", speed: number) =>
+    api.post<{ ok: boolean; error?: string; blocked?: boolean }>("/api/robotics/motor", { side, speed }),
+  servo: (angle: number) => api.post<{ ok: boolean; error?: string; blocked?: boolean }>("/api/robotics/servo", { angle }),
+  led: (on: boolean) => api.post<{ ok: boolean; error?: string }>("/api/robotics/led", { on }),
+  emergency: (reset?: boolean) => api.post<{ ok: boolean; emergency: boolean }>("/api/robotics/emergency", { reset }),
+  limits: () => api.get<{ limits: Record<string, number> }>("/api/robotics/limits"),
+  setLimits: (limits: Record<string, number>) =>
+    api.put<{ ok: boolean; error?: string; limits: Record<string, number> }>("/api/robotics/limits", limits),
+  health: () => api.get<RobotHealth>("/api/robotics/health"),
+  setMode: (mode: string) => api.post<{ ok: boolean; mode: string }>("/api/robotics/mode", { mode }),
+  gestureMapping: () => api.get<{ mapping: Record<string, string> }>("/api/robotics/gesture-mapping"),
+  setGestureMapping: (mapping: Record<string, string>) =>
+    api.put<{ ok: boolean; mapping: Record<string, string> }>("/api/robotics/gesture-mapping", { mapping }),
+  sequences: () => api.get<{ sequences: RobotSequence[] }>("/api/robotics/sequences"),
+  saveSequence: (name: string, steps: SequenceStep[]) =>
+    api.post<{ ok: boolean; sequence: RobotSequence }>("/api/robotics/sequence/save", { name, steps }),
+  deleteSequence: (id: number) => api.del<{ ok: boolean }>(`/api/robotics/sequence/${id}`),
+  runSequence: (steps: SequenceStep[]) =>
+    api.post<{ ok: boolean; error?: string }>("/api/robotics/sequence/run", { steps }),
+  stopSequence: () => api.post<{ ok: boolean }>("/api/robotics/sequence/stop"),
+  aiRecommend: () => api.post<{ ok: boolean; action: string; speed: number; reason: string; context: Record<string, unknown>; safe: boolean }>("/api/robotics/ai/recommend"),
+  aiApply: (action: string, speed?: number) =>
+    api.post<{ ok: boolean; error?: string; blocked?: boolean; recommendation?: unknown }>("/api/robotics/ai/apply", { action, speed }),
+  telemetry: () => api.get<{ ts: string; values: Record<string, TelemetryEntry> }>("/api/robotics/telemetry"),
+};
+
 export function wsUrl(path: string): string {
   if (BASE) {
     const proto = BASE.startsWith("https:") ? "wss" : "ws";
@@ -125,4 +164,78 @@ export interface Project {
   payload: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Robotics
+// ---------------------------------------------------------------------------
+export interface TelemetryEntry {
+  key: string;
+  label: string;
+  unit: string;
+  value: number | string;
+  min: number;
+  max: number;
+  warn: number;
+  state: string;
+}
+
+export interface RobotHealth {
+  device: string;
+  device_type: string;
+  connected: boolean;
+  mode: string;
+  emergency: boolean;
+  cpu: number;
+  memory: number;
+  battery: number;
+  temperature: number;
+  network: string;
+  sensor_status: string;
+  motor_status: string;
+  servo: number;
+  last_command: string;
+  last_response: string;
+  last_command_ts: string;
+  error_count: number;
+  last_error: string;
+  uptime_s: number;
+  runtime_started: boolean;
+}
+
+export interface RoboticsState {
+  device_type: string;
+  device_name: string;
+  connected: boolean;
+  mode: string;
+  emergency: boolean;
+  speed: number;
+  motors: { left: number; right: number };
+  servo_angle: number;
+  led_state: boolean;
+  limits: Record<string, number>;
+  gesture_robot: Record<string, string>;
+  last_command: string;
+  last_command_ts: string;
+  sequence_running: boolean;
+  health: RobotHealth;
+}
+
+export interface RobotDeviceInfo {
+  key: string;
+  name: string;
+  kind: string;
+  transport: string;
+  description: string;
+}
+
+export interface SequenceStep {
+  type: string;
+  [key: string]: unknown;
+}
+
+export interface RobotSequence {
+  id: number;
+  name: string;
+  steps: SequenceStep[];
 }

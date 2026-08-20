@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { api, Project } from "../lib/api";
 import { Panel, Tag } from "../components/ui";
 import { CodeBlock } from "../components/CodeBlock";
 import { useStore } from "../lib/store";
-import { IconAlert } from "../components/icons";
+import { IconAlert, IconCopy, IconDownload, IconUpload } from "../components/icons";
+import { CircuitBuilder } from "./CircuitBuilder";
 
 interface Payload {
   components?: string[];
@@ -11,16 +12,31 @@ interface Payload {
   gestures?: string[];
   notes?: string;
   code?: string;
+  status?: ProjectStatus;
 }
+
+type ProjectStatus = "draft" | "testing" | "connected" | "running" | "completed";
+
+const STATUS_META: Record<ProjectStatus, { color: string; label: string }> = {
+  draft: { color: "var(--color-ink-faint)", label: "Draft" },
+  testing: { color: "var(--color-warn)", label: "Testing" },
+  connected: { color: "var(--color-accent)", label: "Connected" },
+  running: { color: "var(--color-good)", label: "Running" },
+  completed: { color: "var(--color-violet)", label: "Completed" },
+};
+
+const STATUS_ORDER: ProjectStatus[] = ["draft", "testing", "connected", "running", "completed"];
 
 export function Projects() {
   const { notify } = useStore();
+  const [view, setView] = useState<"projects" | "circuit">("projects");
   const [projects, setProjects] = useState<Project[]>([]);
   const [selected, setSelected] = useState<Project | null>(null);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [code, setCode] = useState("");
   const [creating, setCreating] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -50,7 +66,7 @@ export function Projects() {
       const r = await api.post<{ id: number }>("/api/projects", {
         name,
         description: desc,
-        payload: { code },
+        payload: { code, status: "draft" },
       });
       notify("success", `Project created (id ${r.id})`);
       setName(""); setDesc(""); setCode("");
@@ -78,6 +94,15 @@ export function Projects() {
     setSelected(await api.get<Project>(`/api/projects/${selected.id}`));
   };
 
+  const setStatus = async (status: ProjectStatus) => {
+    if (!selected) return;
+    const cur = (selected.payload ?? {}) as Payload;
+    await api.put<Project>(`/api/projects/${selected.id}`, { payload: { ...cur, status } });
+    notify("success", `Status → ${STATUS_META[status].label}`);
+    setSelected(await api.get<Project>(`/api/projects/${selected.id}`));
+    load();
+  };
+
   const remove = async () => {
     if (!selected) return;
     await api.del(`/api/projects/${selected.id}`);
@@ -85,6 +110,60 @@ export function Projects() {
     setSelected(null);
     load();
   };
+
+  const duplicate = async () => {
+    if (!selected) return;
+    try {
+      const r = await api.post<{ id: number }>("/api/projects", {
+        name: `${selected.name} (copy)`,
+        description: selected.description,
+        payload: selected.payload,
+      });
+      notify("success", `Duplicated as project #${r.id}`);
+      load();
+    } catch (e) {
+      notify("error", `Duplicate failed: ${e}`);
+    }
+  };
+
+  const exportProject = () => {
+    if (!selected) return;
+    const blob = new Blob([JSON.stringify({ name: selected.name, description: selected.description, payload: selected.payload }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selected.name.replace(/[^a-z0-9_-]+/gi, "_")}.empire.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    notify("success", "Project exported");
+  };
+
+  const importProject = async (file: File) => {
+    try {
+      const data = JSON.parse(await file.text());
+      const r = await api.post<{ id: number }>("/api/projects", {
+        name: data.name ?? "Imported project",
+        description: data.description ?? "",
+        payload: data.payload ?? {},
+      });
+      notify("success", `Imported as project #${r.id}`);
+      load();
+    } catch (e) {
+      notify("error", `Import failed: ${e}`);
+    }
+  };
+
+  if (view === "circuit") {
+    return (
+      <div className="flex h-full flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <button className="btn btn-primary" onClick={() => setView("projects")}>← Projects</button>
+          <span className="text-[11px] text-[var(--color-ink-faint)]">Design and validate a circuit for a project.</span>
+        </div>
+        <div className="min-h-0 flex-1"><CircuitBuilder /></div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid h-full gap-3 lg:grid-cols-[300px_1fr]">
@@ -97,6 +176,7 @@ export function Projects() {
             <button className="btn btn-primary self-start" onClick={create} disabled={creating || !name.trim()}>
               {creating ? "Creating…" : "Create"}
             </button>
+            <button className="btn self-start" onClick={() => setView("circuit")}>Open Circuit Designer →</button>
           </div>
         </Panel>
 
@@ -104,6 +184,7 @@ export function Projects() {
           <div className="flex flex-col gap-1 p-2">
             {projects.map((p) => {
               const pl = (p.payload ?? {}) as Payload;
+              const st = pl.status ?? "draft";
               return (
                 <button
                   key={p.id}
@@ -116,7 +197,7 @@ export function Projects() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[12.5px] font-semibold text-[var(--color-ink)]">{p.name}</span>
-                    <Tag color="var(--color-ink-faint)">#{p.id}</Tag>
+                    <Tag color={STATUS_META[st].color}>{STATUS_META[st].label}</Tag>
                   </div>
                   <p className="truncate text-[11px] text-[var(--color-ink-faint)]">{p.description}</p>
                   <p className="mono mt-1 text-[9.5px] text-[var(--color-ink-faint)]">
@@ -126,6 +207,18 @@ export function Projects() {
               );
             })}
           </div>
+          <div className="flex gap-2 border-t border-[var(--color-line)] p-2">
+            <button className="btn flex-1 !px-2 text-[11px]" onClick={() => fileRef.current?.click()}>
+              <IconUpload size={12} /> Import
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) importProject(f); e.target.value = ""; }}
+            />
+          </div>
         </Panel>
       </div>
 
@@ -134,10 +227,38 @@ export function Projects() {
           <>
             <Panel
               title={selected.name}
-              right={<button className="btn btn-danger" onClick={remove}>Delete</button>}
+              right={
+                <div className="flex items-center gap-2">
+                  <button className="btn !px-2 text-[11px]" title="Duplicate" onClick={duplicate}><IconCopy size={12} /></button>
+                  <button className="btn !px-2 text-[11px]" title="Export" onClick={exportProject}><IconDownload size={12} /></button>
+                  <button className="btn btn-danger" onClick={remove}>Delete</button>
+                </div>
+              }
               bodyClassName="overflow-y-auto"
             >
               <div className="flex flex-col gap-3 p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] uppercase tracking-wide text-[var(--color-ink-faint)]">Workspace state</span>
+                  {STATUS_ORDER.map((s) => {
+                    const meta = STATUS_META[s];
+                    const active = payload.status === s || (payload.status === undefined && s === "draft");
+                    return (
+                      <button
+                        key={s}
+                        onClick={() => setStatus(s)}
+                        className={`mono rounded px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors ${
+                          active
+                            ? "border border-current bg-current/10"
+                            : "border border-[var(--color-line)] text-[var(--color-ink-faint)] hover:text-[var(--color-ink)]"
+                        }`}
+                        style={active ? { color: meta.color } : undefined}
+                      >
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 <p className="text-[12.5px] leading-relaxed text-[var(--color-ink-dim)]">{selected.description}</p>
 
                 {payload.components && payload.components.length > 0 && (
@@ -199,7 +320,8 @@ export function Projects() {
         ) : (
           <Panel title="Select a project" bodyClassName="flex items-center justify-center">
             <p className="px-8 text-center text-[12px] text-[var(--color-ink-faint)]">
-              Choose a project from the list to view its components, pins, gestures, notes and code.
+              Choose a project to view its workspace state, components, pins, gestures, notes and code — or open the
+              Circuit Designer to build a schematic.
             </p>
           </Panel>
         )}

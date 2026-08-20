@@ -7,20 +7,17 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { api, EventEntry, wsUrl } from "./api";
+import { api, EventEntry, RoboticsState, TelemetryEntry, wsUrl } from "./api";
 
 export type PageKey =
   | "dashboard"
-  | "vision"
   | "gestures"
+  | "robotics"
   | "scanner"
-  | "sensors"
-  | "hardware"
   | "ai"
   | "codegen"
-  | "circuits"
-  | "projects"
   | "learning"
+  | "projects"
   | "settings";
 
 export interface SystemStatus {
@@ -49,6 +46,9 @@ interface Store {
   page: PageKey;
   setPage: (p: PageKey) => void;
   status: SystemStatus | null;
+  robotics: RoboticsState | null;
+  telemetry: Record<string, TelemetryEntry>;
+  refreshRobotics: () => void;
   events: EventEntry[];
   filters: Set<string>;
   toggleFilter: (f: string) => void;
@@ -65,6 +65,8 @@ let toastId = 0;
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [page, setPage] = useState<PageKey>("dashboard");
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [robotics, setRobotics] = useState<RoboticsState | null>(null);
+  const [telemetry, setTelemetry] = useState<Record<string, TelemetryEntry>>({});
   const [events, setEvents] = useState<EventEntry[]>([]);
   const [filters, setFilters] = useState<Set<string>>(new Set());
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -93,11 +95,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     api.get<SystemStatus>("/api/system/status").then(setStatus).catch(() => {});
   }, []);
 
+  const refreshRobotics = useCallback(() => {
+    api.get<RoboticsState>("/api/robotics/state").then(setRobotics).catch(() => {});
+    api.get<{ values: Record<string, TelemetryEntry> }>("/api/robotics/telemetry")
+      .then((r) => setTelemetry(r.values))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     refresh();
-    const t = setInterval(refresh, 2000);
+    refreshRobotics();
+    const t = setInterval(() => {
+      refresh();
+      refreshRobotics();
+    }, 2000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refresh, refreshRobotics]);
+
+  useEffect(() => {
+    const ws = new WebSocket(wsUrl("/ws/robotics"));
+    ws.onmessage = (m) => {
+      try {
+        const data = JSON.parse(m.data);
+        if (data.type === "telemetry" && data.values) {
+          setTelemetry(data.values);
+        }
+      } catch {
+        /* ignore malformed */
+      }
+    };
+    return () => ws.close();
+  }, []);
 
   useEffect(() => {
     const ws = new WebSocket(wsUrl("/ws/events"));
@@ -133,6 +161,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     page,
     setPage,
     status,
+    robotics,
+    telemetry,
+    refreshRobotics,
     events: filteredEvents,
     filters,
     toggleFilter,

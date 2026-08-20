@@ -14,8 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .db import init_db
 from .logging import setup_logging
-from .routers import ai, circuits, components, events, gestures, hardware, health, learning, projects, sensors, vision
-from .services import event_bus, sensor_service, vision_service
+from .routers import ai, circuits, components, events, gestures, hardware, health, learning, projects, robotics, sensors, vision
+from .services import event_bus, robotics_service, sensor_service, vision_service
 
 setup_logging()
 
@@ -25,7 +25,9 @@ async def lifespan(app: FastAPI):
     init_db()
     vision_service.get_vision().start()
     sensor_service.get_sensor_service().start()
+    robotics_service.get_robotics().start()
     yield
+    robotics_service.get_robotics().stop()
     vision_service.get_vision().stop()
     sensor_service.get_sensor_service().stop()
 
@@ -45,7 +47,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for r in (health, vision, gestures, hardware, components, sensors, ai, circuits, projects, learning, events):
+for r in (health, vision, gestures, hardware, components, sensors, ai, circuits, projects, learning, robotics, events):
     app.include_router(r.router)
 
 
@@ -105,6 +107,21 @@ async def ws_sensors(ws: WebSocket):
         pass
     finally:
         svc.unsubscribe(q)
+
+
+@app.websocket("/ws/robotics")
+async def ws_robotics(ws: WebSocket):
+    await ws.accept()
+    rc = robotics_service.get_robotics()
+    q = rc.subscribe()
+    try:
+        while True:
+            payload = await q.get()
+            await ws.send_json(payload)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        rc.unsubscribe(q)
 
 
 if __name__ == "__main__":
